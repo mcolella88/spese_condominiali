@@ -63,31 +63,6 @@ app_calcoli/
 - LocalStorage per il salvataggio dati
 - File API per backup/restore
 
-## Deployment su GitLab
-
-Questo progetto è pronto per essere caricato su GitLab. La struttura include:
-
-- `.gitignore` configurato per ignorare file di backup e dipendenze
-- `.gitlab-ci.yml` per CI/CD (opzionale)
-- Documentazione completa
-
-Per caricare su GitLab:
-
-1. Inizializza il repository Git:
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial commit"
-   ```
-
-2. Crea un nuovo progetto su GitLab
-
-3. Aggiungi il remote e push:
-   ```bash
-   git remote add origin <tuo-gitlab-url>
-   git push -u origin main
-   ```
-
 ## Sicurezza dei Dati
 
 - I dati vengono salvati localmente nel browser dell'utente
