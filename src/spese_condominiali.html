@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestione Spese Condominiali</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 30px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+
+        .form-section {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+
+        .form-section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="date"],
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .water-readings {
+            display: none;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 15px;
+            border: 2px solid #667eea;
+        }
+
+        .water-readings.active {
+            display: block;
+        }
+
+        .water-readings h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+            font-weight: 600;
+        }
+
+        button:hover {
+            background: #5568d3;
+        }
+
+        .delete-btn {
+            background: #dc3545;
+            padding: 8px 15px;
+            font-size: 14px;
+        }
+
+        .delete-btn:hover {
+            background: #c82333;
+        }
+
+        .bills-section {
+            margin-bottom: 30px;
+        }
+
+        .bills-section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .bills-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        .bills-table th,
+        .bills-table td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .bills-table th {
+            background: #667eea;
+            color: white;
+            font-weight: 600;
+        }
+
+        .bills-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .summary-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 30px;
+            border-radius: 15px;
+            color: white;
+        }
+
+        .summary-section h2 {
+            margin-bottom: 25px;
+            font-size: 1.5em;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .summary-card {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 25px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .summary-card h3 {
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .summary-row:last-child {
+            border-bottom: none;
+            font-weight: bold;
+            font-size: 1.1em;
+            margin-top: 15px;
+            padding-top: 15px;
+        }
+
+        .type-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .type-luce {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .type-acqua {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .type-assicurazione {
+            background: #28a745;
+            color: white;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+            font-style: italic;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .clear-btn {
+            background: #dc3545;
+        }
+
+        .clear-btn:hover {
+            background: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏠 Gestione Spese Condominiali</h1>
+
+        <!-- Configurazione nomi -->
+        <div class="form-section">
+            <h2>⚙️ Configurazione</h2>
+            <form id="configForm">
+                <div class="form-group">
+                    <label for="myName">Nome Proprietario 1</label>
+                    <input type="text" id="myName" placeholder="Es. Mario" required>
+                </div>
+                <div class="form-group">
+                    <label for="neighborName">Nome Proprietario 2</label>
+                    <input type="text" id="neighborName" placeholder="Es. Luigi" required>
+                </div>
+                <button type="submit">Salva Nomi</button>
+            </form>
+        </div>
+
+        <!-- Form per aggiungere fattura -->
+        <div class="form-section">
+            <h2>Nuova Fattura</h2>
+            <form id="billForm">
+                <div class="form-group">
+                    <label for="billType">Tipo di Spesa</label>
+                    <select id="billType" required>
+                        <option value="">Seleziona tipo</option>
+                        <option value="luce">Luce Comune</option>
+                        <option value="acqua">Acqua</option>
+                        <option value="assicurazione">Assicurazione Annuale</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="billDate">Data Fattura</label>
+                    <input type="date" id="billDate" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="billAmount">Totale Fattura (€)</label>
+                    <input type="number" id="billAmount" step="0.01" min="0" required>
+                </div>
+
+                <div class="water-readings" id="waterReadings">
+                    <h3>Lettura Contatore Acqua</h3>
+                    
+                    <div class="form-group" id="firstWaterBillSection" style="display: none; background: #fff3cd; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
+                        <h4 style="color: #856404; margin-bottom: 10px;">⚠️ Prima Fattura Acqua</h4>
+                        <p style="color: #856404; margin-bottom: 15px; font-size: 14px;">Inserisci le letture precedenti per calcolare i consumi effettivi.</p>
+                        <div class="form-group">
+                            <label for="prevMyReading">Lettura Precedente Mia (m³)</label>
+                            <input type="number" id="prevMyReading" step="0.01" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="prevNeighborReading">Lettura Precedente Vicino (m³)</label>
+                            <input type="number" id="prevNeighborReading" step="0.01" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="prevTotalReading">Lettura Precedente Totale (m³)</label>
+                            <input type="number" id="prevTotalReading" step="0.01" min="0">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="myReading" id="myReadingLabel">Lettura Mia Corrente (m³)</label>
+                        <input type="number" id="myReading" step="0.01" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="neighborReading" id="neighborReadingLabel">Lettura Vicino Corrente (m³)</label>
+                        <input type="number" id="neighborReading" step="0.01" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="totalReading">Lettura Totale Fattura (m³)</label>
+                        <input type="number" id="totalReading" step="0.01" min="0">
+                    </div>
+                </div>
+
+                <button type="submit">Aggiungi Fattura</button>
+            </form>
+        </div>
+
+        <!-- Lista fatture -->
+        <div class="bills-section">
+            <h2>Fatture Registrate</h2>
+            <table class="bills-table">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Tipo</th>
+                        <th>Totale (€)</th>
+                        <th id="myReadingHeader">Lettura Mia</th>
+                        <th id="neighborReadingHeader">Lettura Vicino</th>
+                        <th>Lettura Totale</th>
+                        <th>Azioni</th>
+                    </tr>
+                </thead>
+                <tbody id="billsTableBody">
+                </tbody>
+            </table>
+            <div id="emptyState" class="empty-state">
+                Nessuna fattura registrata. Aggiungi la prima fattura sopra!
+            </div>
+        </div>
+
+        <!-- Riepilogo -->
+        <div class="summary-section">
+            <h2>📊 Riepilogo Spese</h2>
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <h3 id="mySummaryTitle">Tu</h3>
+                    <div id="mySummary"></div>
+                </div>
+                <div class="summary-card">
+                    <h3 id="neighborSummaryTitle">Vicino</h3>
+                    <div id="neighborSummary"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Storico periodi -->
+        <div class="bills-section">
+            <h2>📜 Storico Periodi Chiusi</h2>
+            <div class="actions" style="margin-bottom: 20px;">
+                <button onclick="exportToExcel()" style="background: #217346;">📊 Esporta in Excel</button>
+            </div>
+            <table class="bills-table">
+                <thead>
+                    <tr>
+                        <th>Periodo</th>
+                        <th id="historyMyHeader">Tu</th>
+                        <th id="historyNeighborHeader">Vicino</th>
+                        <th>Azioni</th>
+                    </tr>
+                </thead>
+                <tbody id="historyTableBody">
+                </tbody>
+            </table>
+            <div id="historyEmptyState" class="empty-state">
+                Nessun periodo chiuso. Chiudi il primo periodo per vedere lo storico!
+            </div>
+        </div>
+
+        <div class="actions">
+            <button onclick="closePeriod()" style="background: #28a745;">Chiudi Periodo Corrente</button>
+            <button onclick="resetWaterReadings()" style="background: #ffc107; color: #333;">Reset Letture Acqua</button>
+            <button onclick="backupData()" style="background: #007bff;">💾 Backup Dati</button>
+            <button onclick="document.getElementById('importFile').click()" style="background: #6f42c1;">📥 Importa Backup</button>
+            <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importData(event)">
+            <button class="clear-btn" onclick="clearAllData()">Cancella Tutti i Dati</button>
+        </div>
+    </div>
+
+    <script>
+        // Dati delle fatture
+        let bills = JSON.parse(localStorage.getItem('bills')) || [];
+
+        // Storico periodi chiusi
+        let periodHistory = JSON.parse(localStorage.getItem('periodHistory')) || [];
+
+        // Nomi proprietari
+        let myName = localStorage.getItem('myName') || 'Tu';
+        let neighborName = localStorage.getItem('neighborName') || 'Vicino';
+
+        // Letture precedenti acqua
+        let waterPreviousReadings = JSON.parse(localStorage.getItem('waterPreviousReadings')) || {
+            myReading: null,
+            neighborReading: null,
+            totalReading: null
+        };
+
+        // Elementi DOM
+        const billForm = document.getElementById('billForm');
+        const configForm = document.getElementById('configForm');
+        const billType = document.getElementById('billType');
+        const waterReadings = document.getElementById('waterReadings');
+        const billsTableBody = document.getElementById('billsTableBody');
+        const emptyState = document.getElementById('emptyState');
+        const myReading = document.getElementById('myReading');
+        const neighborReading = document.getElementById('neighborReading');
+        const totalReading = document.getElementById('totalReading');
+        const prevMyReading = document.getElementById('prevMyReading');
+        const prevNeighborReading = document.getElementById('prevNeighborReading');
+        const prevTotalReading = document.getElementById('prevTotalReading');
+        const firstWaterBillSection = document.getElementById('firstWaterBillSection');
+        const myNameInput = document.getElementById('myName');
+        const neighborNameInput = document.getElementById('neighborName');
+        const historyTableBody = document.getElementById('historyTableBody');
+        const historyEmptyState = document.getElementById('historyEmptyState');
+
+        // Carica nomi salvati
+        myNameInput.value = myName === 'Tu' ? '' : myName;
+        neighborNameInput.value = neighborName === 'Vicino' ? '' : neighborName;
+
+        // Aggiorna interfaccia con i nomi
+        function updateNamesInUI() {
+            document.getElementById('myReadingLabel').textContent = `Lettura ${myName} Corrente (m³)`;
+            document.getElementById('neighborReadingLabel').textContent = `Lettura ${neighborName} Corrente (m³)`;
+            document.getElementById('myReadingHeader').textContent = `Lettura ${myName}`;
+            document.getElementById('neighborReadingHeader').textContent = `Lettura ${neighborName}`;
+            document.getElementById('mySummaryTitle').textContent = myName;
+            document.getElementById('neighborSummaryTitle').textContent = neighborName;
+            document.getElementById('historyMyHeader').textContent = myName;
+            document.getElementById('historyNeighborHeader').textContent = neighborName;
+        }
+
+        // Salva nomi
+        configForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            myName = myNameInput.value || 'Tu';
+            neighborName = neighborNameInput.value || 'Vicino';
+            localStorage.setItem('myName', myName);
+            localStorage.setItem('neighborName', neighborName);
+            updateNamesInUI();
+            renderSummary();
+            renderHistory();
+            alert('Nomi salvati con successo!');
+        });
+
+        // Inizializza nomi nell'interfaccia
+        updateNamesInUI();
+
+        // Mostra/nascondi campi lettura acqua
+        billType.addEventListener('change', function() {
+            if (this.value === 'acqua') {
+                waterReadings.classList.add('active');
+                myReading.required = true;
+                neighborReading.required = true;
+                
+                // Controlla se è la prima fattura d'acqua
+                const hasPreviousWaterReadings = waterPreviousReadings.myReading !== null;
+                
+                if (!hasPreviousWaterReadings) {
+                    firstWaterBillSection.style.display = 'block';
+                    prevMyReading.required = true;
+                    prevNeighborReading.required = true;
+                    prevTotalReading.required = true;
+                } else {
+                    firstWaterBillSection.style.display = 'none';
+                    prevMyReading.required = false;
+                    prevNeighborReading.required = false;
+                    prevTotalReading.required = false;
+                    prevMyReading.value = '';
+                    prevNeighborReading.value = '';
+                    prevTotalReading.value = '';
+                }
+            } else {
+                waterReadings.classList.remove('active');
+                myReading.required = false;
+                neighborReading.required = false;
+                myReading.value = '';
+                neighborReading.value = '';
+                totalReading.value = '';
+                firstWaterBillSection.style.display = 'none';
+                prevMyReading.required = false;
+                prevNeighborReading.required = false;
+                prevTotalReading.required = false;
+                prevMyReading.value = '';
+                prevNeighborReading.value = '';
+                prevTotalReading.value = '';
+            }
+        });
+
+        // Imposta data di oggi
+        document.getElementById('billDate').valueAsDate = new Date();
+
+        // Aggiungi fattura
+        billForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            let bill = {
+                id: Date.now(),
+                type: billType.value,
+                date: document.getElementById('billDate').value,
+                amount: parseFloat(document.getElementById('billAmount').value)
+            };
+
+            if (billType.value === 'acqua') {
+                const currentMyReading = parseFloat(myReading.value);
+                const currentNeighborReading = parseFloat(neighborReading.value);
+                const currentTotalReading = totalReading.value ? parseFloat(totalReading.value) : null;
+                
+                // Determina le letture precedenti
+                let prevMy = waterPreviousReadings.myReading;
+                let prevNeighbor = waterPreviousReadings.neighborReading;
+                let prevTotal = waterPreviousReadings.totalReading;
+                
+                // Se è la prima fattura, usa le letture precedenti inserite
+                if (prevMy === null) {
+                    prevMy = parseFloat(prevMyReading.value);
+                    prevNeighbor = parseFloat(prevNeighborReading.value);
+                    prevTotal = prevTotalReading.value ? parseFloat(prevTotalReading.value) : null;
+                }
+                
+                // Calcola consumi effettivi
+                const myConsumption = currentMyReading - prevMy;
+                const neighborConsumption = currentNeighborReading - prevNeighbor;
+                let totalConsumption = null;
+                
+                if (currentTotalReading !== null && prevTotal !== null) {
+                    totalConsumption = currentTotalReading - prevTotal;
+                } else {
+                    // Se non abbiamo il totale precedente, usa la somma dei consumi individuali
+                    totalConsumption = myConsumption + neighborConsumption;
+                }
+                
+                bill.myReading = currentMyReading;
+                bill.neighborReading = currentNeighborReading;
+                bill.totalReading = currentTotalReading;
+                bill.prevMyReading = prevMy;
+                bill.prevNeighborReading = prevNeighbor;
+                bill.prevTotalReading = prevTotal;
+                bill.myConsumption = myConsumption;
+                bill.neighborConsumption = neighborConsumption;
+                bill.totalConsumption = totalConsumption;
+                
+                // Aggiorna letture precedenti per la prossima fattura
+                waterPreviousReadings = {
+                    myReading: currentMyReading,
+                    neighborReading: currentNeighborReading,
+                    totalReading: currentTotalReading
+                };
+                localStorage.setItem('waterPreviousReadings', JSON.stringify(waterPreviousReadings));
+            } else {
+                bill.myReading = null;
+                bill.neighborReading = null;
+                bill.totalReading = null;
+                bill.prevMyReading = null;
+                bill.prevNeighborReading = null;
+                bill.prevTotalReading = null;
+                bill.myConsumption = null;
+                bill.neighborConsumption = null;
+                bill.totalConsumption = null;
+            }
+
+            bills.push(bill);
+            saveBills();
+            renderBills();
+            renderSummary();
+            billForm.reset();
+            document.getElementById('billDate').valueAsDate = new Date();
+            waterReadings.classList.remove('active');
+            totalReading.value = '';
+            firstWaterBillSection.style.display = 'none';
+            prevMyReading.value = '';
+            prevNeighborReading.value = '';
+            prevTotalReading.value = '';
+        });
+
+        // Salva dati
+        function saveBills() {
+            localStorage.setItem('bills', JSON.stringify(bills));
+        }
+
+        // Renderizza lista fatture
+        function renderBills() {
+            if (bills.length === 0) {
+                billsTableBody.innerHTML = '';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+            billsTableBody.innerHTML = bills.map(bill => `
+                <tr>
+                    <td>${formatDate(bill.date)}</td>
+                    <td><span class="type-badge type-${bill.type}">${getTypeLabel(bill.type)}</span></td>
+                    <td>€${bill.amount.toFixed(2)}</td>
+                    <td>${bill.myReading ? bill.myReading.toFixed(2) + ' m³' : '-'}</td>
+                    <td>${bill.neighborReading ? bill.neighborReading.toFixed(2) + ' m³' : '-'}</td>
+                    <td>${bill.totalReading ? bill.totalReading.toFixed(2) + ' m³' : '-'}</td>
+                    <td>
+                        <button class="delete-btn" onclick="deleteBill(${bill.id})">Elimina</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Elimina fattura
+        function deleteBill(id) {
+            if (confirm('Sei sicuro di voler eliminare questa fattura?')) {
+                bills = bills.filter(bill => bill.id !== id);
+                saveBills();
+                renderBills();
+                renderSummary();
+            }
+        }
+
+        // Calcola riepilogo
+        function renderSummary() {
+            let myTotal = 0;
+            let neighborTotal = 0;
+            let myLuce = 0;
+            let neighborLuce = 0;
+            let myAcqua = 0;
+            let neighborAcqua = 0;
+            let myAssicurazione = 0;
+            let neighborAssicurazione = 0;
+
+            bills.forEach(bill => {
+                if (bill.type === 'luce') {
+                    const half = bill.amount / 2;
+                    myLuce += half;
+                    neighborLuce += half;
+                } else if (bill.type === 'assicurazione') {
+                    const half = bill.amount / 2;
+                    myAssicurazione += half;
+                    neighborAssicurazione += half;
+                } else if (bill.type === 'acqua') {
+                    // Usa i consumi effettivi per calcolare la ripartizione
+                    // Gestisci fatture vecchie che non hanno i campi consumo
+                    const myCons = bill.myConsumption !== undefined && bill.myConsumption !== null ? bill.myConsumption : 
+                                  (bill.myReading && bill.prevMyReading !== null && bill.prevMyReading !== undefined ? bill.myReading - bill.prevMyReading : bill.myReading);
+                    const neighborCons = bill.neighborConsumption !== undefined && bill.neighborConsumption !== null ? bill.neighborConsumption : 
+                                        (bill.neighborReading && bill.prevNeighborReading !== null && bill.prevNeighborReading !== undefined ? bill.neighborReading - bill.prevNeighborReading : bill.neighborReading);
+                    const totalCons = bill.totalConsumption !== undefined && bill.totalConsumption !== null ? bill.totalConsumption : 
+                                     (myCons + neighborCons);
+                    
+                    if (totalCons > 0) {
+                        const myShare = (myCons / totalCons) * bill.amount;
+                        const neighborShare = (neighborCons / totalCons) * bill.amount;
+                        myAcqua += myShare;
+                        neighborAcqua += neighborShare;
+                    }
+                }
+            });
+
+            myTotal = myLuce + myAcqua + myAssicurazione;
+            neighborTotal = neighborLuce + neighborAcqua + neighborAssicurazione;
+
+            document.getElementById('mySummary').innerHTML = `
+                <div class="summary-row">
+                    <span>Luce</span>
+                    <span>€${myLuce.toFixed(2)}</span>
+                </div>
+                <div class="summary-row">
+                    <span>Acqua</span>
+                    <span>€${myAcqua.toFixed(2)}</span>
+                </div>
+                <div class="summary-row">
+                    <span>Assicurazione</span>
+                    <span>€${myAssicurazione.toFixed(2)}</span>
+                </div>
+                <div class="summary-row">
+                    <span>TOTALE</span>
+                    <span>€${myTotal.toFixed(2)}</span>
+                </div>
+            `;
+
+            document.getElementById('neighborSummary').innerHTML = `
+                <div class="summary-row">
+                    <span>Luce</span>
+                    <span>€${neighborLuce.toFixed(2)}</span>
+                </div>
+                <div class="summary-row">
+                    <span>Acqua</span>
+                    <span>€${neighborAcqua.toFixed(2)}</span>
+                </div>
+                <div class="summary-row">
+                    <span>Assicurazione</span>
+                    <span>€${neighborAssicurazione.toFixed(2)}</span>
+                </div>
+                <div class="summary-row">
+                    <span>TOTALE</span>
+                    <span>€${neighborTotal.toFixed(2)}</span>
+                </div>
+            `;
+        }
+
+        // Helper functions
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('it-IT');
+        }
+
+        function getTypeLabel(type) {
+            const labels = {
+                'luce': 'Luce',
+                'acqua': 'Acqua',
+                'assicurazione': 'Assicurazione'
+            };
+            return labels[type] || type;
+        }
+
+        function clearAllData() {
+            if (confirm('Sei sicuro di voler cancellare tutti i dati? Questa azione è irreversibile.')) {
+                bills = [];
+                periodHistory = [];
+                waterPreviousReadings = {
+                    myReading: null,
+                    neighborReading: null,
+                    totalReading: null
+                };
+                saveBills();
+                savePeriodHistory();
+                localStorage.setItem('waterPreviousReadings', JSON.stringify(waterPreviousReadings));
+                renderBills();
+                renderSummary();
+                renderHistory();
+            }
+        }
+
+        // Reset letture acqua
+        function resetWaterReadings() {
+            if (confirm('Sei sicuro di voler resettare le letture precedenti dell\'acqua? Questa azione richiederà di reinserire le letture precedenti alla prossima fattura d\'acqua.')) {
+                waterPreviousReadings = {
+                    myReading: null,
+                    neighborReading: null,
+                    totalReading: null
+                };
+                localStorage.setItem('waterPreviousReadings', JSON.stringify(waterPreviousReadings));
+                prevTotalReading.value = '';
+                alert('Letture acqua resettate con successo!');
+            }
+        }
+
+        // Chiudi periodo corrente
+        function closePeriod() {
+            if (bills.length === 0) {
+                alert('Non ci sono fatture da chiudere in questo periodo.');
+                return;
+            }
+
+            if (!confirm('Sei sicuro di voler chiudere questo periodo? Le fatture correnti verranno archiviate e i totali azzerati.')) {
+                return;
+            }
+
+            // Calcola totali del periodo
+            let myTotal = 0;
+            let neighborTotal = 0;
+            let myLuce = 0;
+            let neighborLuce = 0;
+            let myAcqua = 0;
+            let neighborAcqua = 0;
+            let myAssicurazione = 0;
+            let neighborAssicurazione = 0;
+
+            bills.forEach(bill => {
+                if (bill.type === 'luce') {
+                    const half = bill.amount / 2;
+                    myLuce += half;
+                    neighborLuce += half;
+                } else if (bill.type === 'assicurazione') {
+                    const half = bill.amount / 2;
+                    myAssicurazione += half;
+                    neighborAssicurazione += half;
+                } else if (bill.type === 'acqua') {
+                    // Usa i consumi effettivi per calcolare la ripartizione
+                    // Gestisci fatture vecchie che non hanno i campi consumo
+                    const myCons = bill.myConsumption !== undefined && bill.myConsumption !== null ? bill.myConsumption : 
+                                  (bill.myReading && bill.prevMyReading !== null && bill.prevMyReading !== undefined ? bill.myReading - bill.prevMyReading : bill.myReading);
+                    const neighborCons = bill.neighborConsumption !== undefined && bill.neighborConsumption !== null ? bill.neighborConsumption : 
+                                        (bill.neighborReading && bill.prevNeighborReading !== null && bill.prevNeighborReading !== undefined ? bill.neighborReading - bill.prevNeighborReading : bill.neighborReading);
+                    const totalCons = bill.totalConsumption !== undefined && bill.totalConsumption !== null ? bill.totalConsumption : 
+                                     (myCons + neighborCons);
+                    
+                    if (totalCons > 0) {
+                        const myShare = (myCons / totalCons) * bill.amount;
+                        const neighborShare = (neighborCons / totalCons) * bill.amount;
+                        myAcqua += myShare;
+                        neighborAcqua += neighborShare;
+                    }
+                }
+            });
+
+            myTotal = myLuce + myAcqua + myAssicurazione;
+            neighborTotal = neighborLuce + neighborAcqua + neighborAssicurazione;
+
+            // Crea periodo
+            const period = {
+                id: Date.now(),
+                startDate: getEarliestDate(),
+                endDate: new Date().toISOString().split('T')[0],
+                myName: myName,
+                neighborName: neighborName,
+                myTotal: myTotal,
+                neighborTotal: neighborTotal,
+                myLuce: myLuce,
+                neighborLuce: neighborLuce,
+                myAcqua: myAcqua,
+                neighborAcqua: neighborAcqua,
+                myAssicurazione: myAssicurazione,
+                neighborAssicurazione: neighborAssicurazione,
+                bills: [...bills]
+            };
+
+            // Salva periodo nello storico
+            periodHistory.push(period);
+            savePeriodHistory();
+
+            // Azzerare fatture correnti
+            bills = [];
+            saveBills();
+
+            // Aggiorna UI
+            renderBills();
+            renderSummary();
+            renderHistory();
+
+            alert('Periodo chiuso con successo! I totali sono stati salvati nello storico.');
+        }
+
+        // Salva storico periodi
+        function savePeriodHistory() {
+            localStorage.setItem('periodHistory', JSON.stringify(periodHistory));
+        }
+
+        // Renderizza storico periodi
+        function renderHistory() {
+            if (periodHistory.length === 0) {
+                historyTableBody.innerHTML = '';
+                historyEmptyState.style.display = 'block';
+                return;
+            }
+
+            historyEmptyState.style.display = 'none';
+            historyTableBody.innerHTML = periodHistory.map(period => `
+                <tr>
+                    <td>${formatDate(period.startDate)} - ${formatDate(period.endDate)}</td>
+                    <td>€${period.myTotal.toFixed(2)}</td>
+                    <td>€${period.neighborTotal.toFixed(2)}</td>
+                    <td>
+                        <button class="delete-btn" onclick="deletePeriod(${period.id})">Elimina</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Elimina periodo dallo storico
+        function deletePeriod(id) {
+            if (confirm('Sei sicuro di voler eliminare questo periodo dallo storico?')) {
+                periodHistory = periodHistory.filter(period => period.id !== id);
+                savePeriodHistory();
+                renderHistory();
+            }
+        }
+
+        // Ottieni data più antica delle fatture
+        function getEarliestDate() {
+            if (bills.length === 0) return new Date().toISOString().split('T')[0];
+            return bills.reduce((earliest, bill) => {
+                return bill.date < earliest ? bill.date : earliest;
+            }, bills[0].date);
+        }
+
+        // Esporta in Excel
+        function exportToExcel() {
+            if (periodHistory.length === 0) {
+                alert('Non ci sono periodi chiusi da esportare.');
+                return;
+            }
+
+            // Crea workbook
+            const wb = XLSX.utils.book_new();
+
+            // Crea foglio riepilogo periodi
+            const summaryData = [
+                ['Periodo', 'Proprietario 1', 'Totale 1 (€)', 'Luce 1 (€)', 'Acqua 1 (€)', 'Assicurazione 1 (€)', 'Proprietario 2', 'Totale 2 (€)', 'Luce 2 (€)', 'Acqua 2 (€)', 'Assicurazione 2 (€)']
+            ];
+
+            periodHistory.forEach(period => {
+                summaryData.push([
+                    `${formatDate(period.startDate)} - ${formatDate(period.endDate)}`,
+                    period.myName,
+                    period.myTotal.toFixed(2),
+                    period.myLuce.toFixed(2),
+                    period.myAcqua.toFixed(2),
+                    period.myAssicurazione.toFixed(2),
+                    period.neighborName,
+                    period.neighborTotal.toFixed(2),
+                    period.neighborLuce.toFixed(2),
+                    period.neighborAcqua.toFixed(2),
+                    period.neighborAssicurazione.toFixed(2)
+                ]);
+            });
+
+            const summaryWs = XLSX.utils.aoa_to_sheet(summaryData);
+            XLSX.utils.book_append_sheet(wb, summaryWs, 'Riepilogo Periodi');
+
+            // Crea foglio dettagli fatture per ogni periodo
+            periodHistory.forEach((period, index) => {
+                const billData = [
+                    ['Data', 'Tipo', 'Totale (€)', `Lettura ${period.myName} (m³)`, `Lettura ${period.neighborName} (m³)`, 'Lettura Totale (m³)']
+                ];
+
+                period.bills.forEach(bill => {
+                    billData.push([
+                        formatDate(bill.date),
+                        getTypeLabel(bill.type),
+                        bill.amount.toFixed(2),
+                        bill.myReading ? bill.myReading.toFixed(2) : '-',
+                        bill.neighborReading ? bill.neighborReading.toFixed(2) : '-',
+                        bill.totalReading ? bill.totalReading.toFixed(2) : '-'
+                    ]);
+                });
+
+                const billWs = XLSX.utils.aoa_to_sheet(billData);
+                const sheetName = `Periodo ${index + 1}`;
+                XLSX.utils.book_append_sheet(wb, billWs, sheetName.substring(0, 31)); // Excel limit: 31 chars
+            });
+
+            // Genera nome file con data
+            const fileName = `spese_condominiali_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+            // Scarica file
+            XLSX.writeFile(wb, fileName);
+        }
+
+        // Backup dati in JSON
+        function backupData() {
+            const backupData = {
+                version: '1.0',
+                backupDate: new Date().toISOString(),
+                bills: bills,
+                periodHistory: periodHistory,
+                myName: myName,
+                neighborName: neighborName,
+                waterPreviousReadings: waterPreviousReadings
+            };
+
+            const dataStr = JSON.stringify(backupData, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            
+            const link = document.createElement('a');
+            const fileName = `backup_spese_condominiali_${new Date().toISOString().split('T')[0]}.json`;
+            link.download = fileName;
+            link.href = url;
+            link.click();
+            
+            URL.revokeObjectURL(url);
+            alert('Backup completato! Il file è stato scaricato.');
+        }
+
+        // Importa dati da backup JSON
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const backupData = JSON.parse(e.target.result);
+                    
+                    // Validazione base
+                    if (!backupData.version || !backupData.bills || !backupData.periodHistory) {
+                        throw new Error('Formato file di backup non valido');
+                    }
+
+                    // Conferma importazione
+                    if (!confirm(`Sei sicuro di voler importare il backup del ${new Date(backupData.backupDate).toLocaleDateString('it-IT')}?\n\nI dati attuali verranno sostituiti.`)) {
+                        return;
+                    }
+
+                    // Ripristina dati
+                    bills = backupData.bills || [];
+                    periodHistory = backupData.periodHistory || [];
+                    myName = backupData.myName || 'Tu';
+                    neighborName = backupData.neighborName || 'Vicino';
+                    waterPreviousReadings = backupData.waterPreviousReadings || {
+                        myReading: null,
+                        neighborReading: null,
+                        totalReading: null
+                    };
+
+                    // Salva in localStorage
+                    saveBills();
+                    savePeriodHistory();
+                    localStorage.setItem('myName', myName);
+                    localStorage.setItem('neighborName', neighborName);
+                    localStorage.setItem('waterPreviousReadings', JSON.stringify(waterPreviousReadings));
+
+                    // Aggiorna UI
+                    myNameInput.value = myName === 'Tu' ? '' : myName;
+                    neighborNameInput.value = neighborName === 'Vicino' ? '' : neighborName;
+                    updateNamesInUI();
+                    renderBills();
+                    renderSummary();
+                    renderHistory();
+
+                    alert('Dati importati con successo!');
+                } catch (error) {
+                    alert('Errore durante l\'importazione: ' + error.message);
+                    console.error('Import error:', error);
+                }
+            };
+            reader.readAsText(file);
+            
+            // Reset input file per permettere di selezionare lo stesso file
+            event.target.value = '';
+        }
+
+        // Salvataggio automatico periodico
+        let autoSaveInterval;
+        function startAutoSave() {
+            // Salva ogni 30 secondi
+            autoSaveInterval = setInterval(() => {
+                saveBills();
+                savePeriodHistory();
+                localStorage.setItem('waterPreviousReadings', JSON.stringify(waterPreviousReadings));
+                console.log('Auto-salvataggio completato');
+            }, 30000);
+        }
+
+        // Avvia auto-salvataggio
+        startAutoSave();
+
+        // Render iniziale
+        renderBills();
+        renderSummary();
+        renderHistory();
+    </script>
+</body>
+</html>

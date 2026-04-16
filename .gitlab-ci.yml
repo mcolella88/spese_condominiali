@@ -1,0 +1,30 @@
+# GitLab CI/CD Configuration
+# Per un progetto HTML statico, questo è un esempio base
+
+stages:
+  - test
+  - deploy
+
+# Job di test (opzionale)
+test:
+  stage: test
+  image: node:latest
+  script:
+    - echo "Esecuzione test..."
+    - # Aggiungi qui eventuali test o linting
+  only:
+    - main
+    - develop
+
+# Job di deploy (opzionale)
+pages:
+  stage: deploy
+  image: node:latest
+  script:
+    - mkdir -p public
+    - cp src/spese_condominiali.html public/index.html
+  artifacts:
+    paths:
+      - public
+  only:
+    - main
