@@ -329,7 +329,7 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="readingType">Tipo Lettura</label>
+                        <label for="readingType">Tipo Lettura 1</label>
                         <select id="readingType">
                             <option value="rilevata">Rilevata</option>
                             <option value="stimata">Stimata</option>
@@ -337,8 +337,22 @@
                     </div>
                     
                     <div class="form-group">
-                        <label for="smatReading">Lettura SMAT (m³)</label>
+                        <label for="smatReading">Lettura SMAT 1 (m³)</label>
                         <input type="number" id="smatReading" step="0.01" min="0" placeholder="Lettura riportata in fattura">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="readingType2">Tipo Lettura 2</label>
+                        <select id="readingType2">
+                            <option value="">Nessuna</option>
+                            <option value="rilevata">Rilevata</option>
+                            <option value="stimata">Stimata</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="smatReading2">Lettura SMAT 2 (m³)</label>
+                        <input type="number" id="smatReading2" step="0.01" min="0" placeholder="Lettura riportata in fattura">
                     </div>
 
                     <div class="form-group">
@@ -363,7 +377,8 @@
                         <th>N. Bolletta</th>
                         <th>Periodo</th>
                         <th>Totale (€)</th>
-                        <th>Lettura SMAT</th>
+                        <th>Lettura SMAT 1</th>
+                        <th>Lettura SMAT 2</th>
                         <th>Azioni</th>
                     </tr>
                 </thead>
@@ -462,6 +477,8 @@
         const periodFrom = document.getElementById('periodFrom');
         const periodTo = document.getElementById('periodTo');
         const readingType = document.getElementById('readingType');
+        const readingType2 = document.getElementById('readingType2');
+        const smatReading2 = document.getElementById('smatReading2');
         const bollo = document.getElementById('bollo');
         const acconto = document.getElementById('acconto');
         const submitBillBtn = document.getElementById('submitBillBtn');
@@ -525,6 +542,8 @@
                 periodFrom.value = '';
                 periodTo.value = '';
                 readingType.value = 'rilevata';
+                readingType2.value = '';
+                smatReading2.value = '';
                 acconto.value = '0';
             }
         });
@@ -552,6 +571,8 @@
                 bill.periodFrom = periodFrom.value || null;
                 bill.periodTo = periodTo.value || null;
                 bill.readingType = readingType.value;
+                bill.readingType2 = readingType2.value || null;
+                bill.smatReading2 = smatReading2.value ? parseFloat(smatReading2.value) : null;
                 bill.acconto = parseFloat(acconto.value) || 0;
             } else {
                 bill.smatReading = null;
@@ -559,6 +580,8 @@
                 bill.periodFrom = null;
                 bill.periodTo = null;
                 bill.readingType = null;
+                bill.readingType2 = null;
+                bill.smatReading2 = null;
                 bill.acconto = null;
             }
 
@@ -586,6 +609,8 @@
             periodFrom.value = '';
             periodTo.value = '';
             readingType.value = 'rilevata';
+            readingType2.value = '';
+            smatReading2.value = '';
             bollo.value = '0';
             acconto.value = '0';
             editingBillId = null;
@@ -623,6 +648,11 @@
                     smatReadingDisplay = bill.smatReading.toFixed(2) + ' m³';
                 }
                 
+                let smatReading2Display = '-';
+                if (bill.type === 'acqua' && bill.smatReading2 !== null) {
+                    smatReading2Display = bill.smatReading2.toFixed(2) + ' m³';
+                }
+                
                 return `
                 <tr>
                     <td>${formatDate(bill.date)}</td>
@@ -631,6 +661,7 @@
                     <td>${periodDisplay}</td>
                     <td>€${bill.amount.toFixed(2)}</td>
                     <td>${smatReadingDisplay}</td>
+                    <td>${smatReading2Display}</td>
                     <td>
                         <button onclick="editBill(${bill.id})" style="background: #17a2b8; margin-right: 5px;">Modifica</button>
                         <button class="delete-btn" onclick="deleteBill(${bill.id})">Elimina</button>
@@ -669,6 +700,8 @@
                 periodFrom.value = bill.periodFrom || '';
                 periodTo.value = bill.periodTo || '';
                 readingType.value = bill.readingType || 'rilevata';
+                readingType2.value = bill.readingType2 || '';
+                smatReading2.value = bill.smatReading2 || '';
                 acconto.value = bill.acconto || 0;
             } else {
                 waterReadings.classList.remove('active');
@@ -694,6 +727,8 @@
             periodFrom.value = '';
             periodTo.value = '';
             readingType.value = 'rilevata';
+            readingType2.value = '';
+            smatReading2.value = '';
             bollo.value = '0';
             acconto.value = '0';
             
@@ -1154,7 +1189,7 @@
             // Crea foglio dettagli fatture per ogni periodo
             periodHistory.forEach((period, index) => {
                 const billData = [
-                    ['Data', 'Tipo', 'N. Bolletta', 'Periodo DAL', 'Periodo AL', 'Tipo Lettura', 'Totale (€)', 'Bolli/Commissioni (€)', 'Acconto (€)', 'Lettura SMAT (m³)']
+                    ['Data', 'Tipo', 'N. Bolletta', 'Periodo DAL', 'Periodo AL', 'Tipo Lettura 1', 'Lettura SMAT 1 (m³)', 'Tipo Lettura 2', 'Lettura SMAT 2 (m³)', 'Totale (€)', 'Bolli/Commissioni (€)', 'Acconto (€)']
                 ];
 
                 period.bills.forEach(bill => {
@@ -1162,9 +1197,11 @@
                     let periodFrom = bill.periodFrom ? formatDate(bill.periodFrom) : '-';
                     let periodTo = bill.periodTo ? formatDate(bill.periodTo) : '-';
                     let readingType = bill.readingType || '-';
+                    let smatReading = bill.smatReading !== null && bill.smatReading !== undefined ? bill.smatReading.toFixed(2) : '-';
+                    let readingType2 = bill.readingType2 || '-';
+                    let smatReading2 = bill.smatReading2 !== null && bill.smatReading2 !== undefined ? bill.smatReading2.toFixed(2) : '-';
                     let bollo = bill.bollo !== null && bill.bollo !== undefined ? bill.bollo.toFixed(2) : '-';
                     let acconto = bill.acconto !== null && bill.acconto !== undefined ? bill.acconto.toFixed(2) : '-';
-                    let smatReading = bill.smatReading !== null && bill.smatReading !== undefined ? bill.smatReading.toFixed(2) : '-';
                     
                     billData.push([
                         formatDate(bill.date),
@@ -1173,10 +1210,12 @@
                         periodFrom,
                         periodTo,
                         readingType,
+                        smatReading,
+                        readingType2,
+                        smatReading2,
                         bill.amount.toFixed(2),
                         bollo,
-                        acconto,
-                        smatReading
+                        acconto
                     ]);
                 });
 
@@ -1195,7 +1234,7 @@
         // Backup dati in JSON
         function backupData() {
             const backupData = {
-                version: '3.2',
+                version: '3.3',
                 backupDate: new Date().toISOString(),
                 bills: bills,
                 periodHistory: periodHistory,
