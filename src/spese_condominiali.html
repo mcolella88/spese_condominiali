@@ -307,6 +307,29 @@
                             <input type="number" id="prevTotalReading" step="0.01" min="0">
                         </div>
                     </div>
+
+                    <div class="form-group">
+                        <label for="billNumber">Numero Bolletta</label>
+                        <input type="text" id="billNumber" placeholder="Es. 2200506006">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="periodFrom">Periodo DAL</label>
+                        <input type="date" id="periodFrom">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="periodTo">Periodo AL</label>
+                        <input type="date" id="periodTo">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="readingType">Tipo Lettura</label>
+                        <select id="readingType">
+                            <option value="rilevata">Rilevata</option>
+                            <option value="stimata">Stimata</option>
+                        </select>
+                    </div>
                     
                     <div class="form-group">
                         <label for="myReading" id="myReadingLabel">Lettura Mia Corrente (m³)</label>
@@ -319,6 +342,16 @@
                     <div class="form-group">
                         <label for="totalReading">Lettura Totale Fattura (m³)</label>
                         <input type="number" id="totalReading" step="0.01" min="0">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="bollo">Bolli (€)</label>
+                        <input type="number" id="bollo" step="0.01" min="0" value="0">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="acconto">Acconto (€)</label>
+                        <input type="number" id="acconto" step="0.01" min="0" value="0">
                     </div>
                 </div>
 
@@ -334,6 +367,8 @@
                     <tr>
                         <th>Data</th>
                         <th>Tipo</th>
+                        <th>N. Bolletta</th>
+                        <th>Periodo</th>
                         <th>Totale (€)</th>
                         <th id="myReadingHeader">Lettura Mia</th>
                         <th id="neighborReadingHeader">Lettura Vicino</th>
@@ -433,6 +468,12 @@
         const neighborNameInput = document.getElementById('neighborName');
         const historyTableBody = document.getElementById('historyTableBody');
         const historyEmptyState = document.getElementById('historyEmptyState');
+        const billNumber = document.getElementById('billNumber');
+        const periodFrom = document.getElementById('periodFrom');
+        const periodTo = document.getElementById('periodTo');
+        const readingType = document.getElementById('readingType');
+        const bollo = document.getElementById('bollo');
+        const acconto = document.getElementById('acconto');
 
         // Carica nomi salvati
         myNameInput.value = myName === 'Tu' ? '' : myName;
@@ -504,6 +545,12 @@
                 prevMyReading.value = '';
                 prevNeighborReading.value = '';
                 prevTotalReading.value = '';
+                billNumber.value = '';
+                periodFrom.value = '';
+                periodTo.value = '';
+                readingType.value = 'rilevata';
+                bollo.value = '0';
+                acconto.value = '0';
             }
         });
 
@@ -550,6 +597,12 @@
                     totalConsumption = myConsumption + neighborConsumption;
                 }
                 
+                // Calcola importo al mq consumo
+                let pricePerMq = 0;
+                if (totalConsumption > 0) {
+                    pricePerMq = bill.amount / totalConsumption;
+                }
+                
                 bill.myReading = currentMyReading;
                 bill.neighborReading = currentNeighborReading;
                 bill.totalReading = currentTotalReading;
@@ -559,6 +612,13 @@
                 bill.myConsumption = myConsumption;
                 bill.neighborConsumption = neighborConsumption;
                 bill.totalConsumption = totalConsumption;
+                bill.pricePerMq = pricePerMq;
+                bill.billNumber = billNumber.value || null;
+                bill.periodFrom = periodFrom.value || null;
+                bill.periodTo = periodTo.value || null;
+                bill.readingType = readingType.value;
+                bill.bollo = parseFloat(bollo.value) || 0;
+                bill.acconto = parseFloat(acconto.value) || 0;
                 
                 // Aggiorna letture precedenti per la prossima fattura
                 waterPreviousReadings = {
@@ -577,6 +637,13 @@
                 bill.myConsumption = null;
                 bill.neighborConsumption = null;
                 bill.totalConsumption = null;
+                bill.pricePerMq = null;
+                bill.billNumber = null;
+                bill.periodFrom = null;
+                bill.periodTo = null;
+                bill.readingType = null;
+                bill.bollo = null;
+                bill.acconto = null;
             }
 
             bills.push(bill);
@@ -591,6 +658,12 @@
             prevMyReading.value = '';
             prevNeighborReading.value = '';
             prevTotalReading.value = '';
+            billNumber.value = '';
+            periodFrom.value = '';
+            periodTo.value = '';
+            readingType.value = 'rilevata';
+            bollo.value = '0';
+            acconto.value = '0';
         });
 
         // Salva dati
@@ -607,10 +680,23 @@
             }
 
             emptyState.style.display = 'none';
-            billsTableBody.innerHTML = bills.map(bill => `
+            billsTableBody.innerHTML = bills.map(bill => {
+                let periodDisplay = '-';
+                if (bill.type === 'acqua' && bill.periodFrom && bill.periodTo) {
+                    periodDisplay = `${formatDate(bill.periodFrom)} - ${formatDate(bill.periodTo)}`;
+                }
+                
+                let billNumberDisplay = '-';
+                if (bill.type === 'acqua' && bill.billNumber) {
+                    billNumberDisplay = bill.billNumber;
+                }
+                
+                return `
                 <tr>
                     <td>${formatDate(bill.date)}</td>
                     <td><span class="type-badge type-${bill.type}">${getTypeLabel(bill.type)}</span></td>
+                    <td>${billNumberDisplay}</td>
+                    <td>${periodDisplay}</td>
                     <td>€${bill.amount.toFixed(2)}</td>
                     <td>${bill.myReading ? bill.myReading.toFixed(2) + ' m³' : '-'}</td>
                     <td>${bill.neighborReading ? bill.neighborReading.toFixed(2) + ' m³' : '-'}</td>
@@ -619,7 +705,8 @@
                         <button class="delete-btn" onclick="deleteBill(${bill.id})">Elimina</button>
                     </td>
                 </tr>
-            `).join('');
+                `;
+            }).join('');
         }
 
         // Elimina fattura
@@ -642,6 +729,9 @@
             let neighborAcqua = 0;
             let myAssicurazione = 0;
             let neighborAssicurazione = 0;
+            let totalWaterConsumption = 0;
+            let totalWaterAmount = 0;
+            let avgPricePerMq = 0;
 
             bills.forEach(bill => {
                 if (bill.type === 'luce') {
@@ -667,12 +757,19 @@
                         const neighborShare = (neighborCons / totalCons) * bill.amount;
                         myAcqua += myShare;
                         neighborAcqua += neighborShare;
+                        totalWaterConsumption += totalCons;
+                        totalWaterAmount += bill.amount;
                     }
                 }
             });
 
             myTotal = myLuce + myAcqua + myAssicurazione;
             neighborTotal = neighborLuce + neighborAcqua + neighborAssicurazione;
+            
+            // Calcola prezzo medio al mq
+            if (totalWaterConsumption > 0) {
+                avgPricePerMq = totalWaterAmount / totalWaterConsumption;
+            }
 
             document.getElementById('mySummary').innerHTML = `
                 <div class="summary-row">
@@ -711,6 +808,36 @@
                     <span>€${neighborTotal.toFixed(2)}</span>
                 </div>
             `;
+            
+            // Aggiungi card per statistiche acqua se ci sono fatture acqua
+            if (totalWaterConsumption > 0) {
+                const summaryGrid = document.querySelector('.summary-grid');
+                // Rimuovi card statistiche esistenti se presenti
+                const existingStatsCard = document.getElementById('waterStatsCard');
+                if (existingStatsCard) {
+                    existingStatsCard.remove();
+                }
+                
+                const statsCard = document.createElement('div');
+                statsCard.className = 'summary-card';
+                statsCard.id = 'waterStatsCard';
+                statsCard.innerHTML = `
+                    <h3>📊 Statistiche Acqua</h3>
+                    <div class="summary-row">
+                        <span>Consumo Totale</span>
+                        <span>${totalWaterConsumption.toFixed(2)} m³</span>
+                    </div>
+                    <div class="summary-row">
+                        <span>Importo Totale</span>
+                        <span>€${totalWaterAmount.toFixed(2)}</span>
+                    </div>
+                    <div class="summary-row">
+                        <span>Prezzo Medio/m³</span>
+                        <span>€${avgPricePerMq.toFixed(4)}</span>
+                    </div>
+                `;
+                summaryGrid.appendChild(statsCard);
+            }
         }
 
         // Helper functions
@@ -926,17 +1053,34 @@
             // Crea foglio dettagli fatture per ogni periodo
             periodHistory.forEach((period, index) => {
                 const billData = [
-                    ['Data', 'Tipo', 'Totale (€)', `Lettura ${period.myName} (m³)`, `Lettura ${period.neighborName} (m³)`, 'Lettura Totale (m³)']
+                    ['Data', 'Tipo', 'N. Bolletta', 'Periodo DAL', 'Periodo AL', 'Tipo Lettura', 'Totale (€)', 'Bolli (€)', 'Acconto (€)', `Lettura ${period.myName} (m³)`, `Lettura ${period.neighborName} (m³)`, 'Lettura Totale (m³)', 'Consumo Totale (m³)', 'Prezzo/m³ (€)']
                 ];
 
                 period.bills.forEach(bill => {
+                    let billNumber = bill.billNumber || '-';
+                    let periodFrom = bill.periodFrom ? formatDate(bill.periodFrom) : '-';
+                    let periodTo = bill.periodTo ? formatDate(bill.periodTo) : '-';
+                    let readingType = bill.readingType || '-';
+                    let bollo = bill.bollo !== null && bill.bollo !== undefined ? bill.bollo.toFixed(2) : '-';
+                    let acconto = bill.acconto !== null && bill.acconto !== undefined ? bill.acconto.toFixed(2) : '-';
+                    let pricePerMq = bill.pricePerMq !== null && bill.pricePerMq !== undefined ? bill.pricePerMq.toFixed(4) : '-';
+                    let totalConsumption = bill.totalConsumption !== null && bill.totalConsumption !== undefined ? bill.totalConsumption.toFixed(2) : '-';
+                    
                     billData.push([
                         formatDate(bill.date),
                         getTypeLabel(bill.type),
+                        billNumber,
+                        periodFrom,
+                        periodTo,
+                        readingType,
                         bill.amount.toFixed(2),
+                        bollo,
+                        acconto,
                         bill.myReading ? bill.myReading.toFixed(2) : '-',
                         bill.neighborReading ? bill.neighborReading.toFixed(2) : '-',
-                        bill.totalReading ? bill.totalReading.toFixed(2) : '-'
+                        bill.totalReading ? bill.totalReading.toFixed(2) : '-',
+                        totalConsumption,
+                        pricePerMq
                     ]);
                 });
 
