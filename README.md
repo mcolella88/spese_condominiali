@@ -30,7 +30,7 @@ Per ogni fattura è possibile inserire:
 - **Esportazione Excel**: Export completo di tutti i dati in formato Excel
 - **Backup/Restore**: Salvataggio e ripristino dei dati in formato JSON
 - **Auto-salvataggio**: Salvataggio automatico ogni 30 secondi
-- **Persistenza dati**: Utilizzo di localStorage per mantenere i dati
+- **Persistenza dati**: Utilizzo di IndexedDB per mantenere i dati (con fallback a localStorage)
 
 ## Utilizzo
 
@@ -61,7 +61,8 @@ Quando chiudi il periodo:
 - CSS3 (con design responsive e gradienti)
 - JavaScript (vanilla)
 - SheetJS (per esportazione Excel)
-- LocalStorage (per persistenza dati)
+- IndexedDB (per persistenza dati)
+- idb-keyval (wrapper semplificato per IndexedDB)
 
 ## Installazione
 
@@ -77,10 +78,15 @@ Essendo un file HTML statico, può essere deployato su qualsiasi server web.
 
 ## Backup e Sicurezza
 
-I dati vengono salvati nel localStorage del browser. Si consiglia di:
+I dati vengono salvati nel IndexedDB del browser (con fallback automatico a localStorage). Si consiglia di:
 - Fare regolarmente backup dei dati usando la funzione "Backup Dati"
 - Salvare i file di backup in una posizione sicura
 - Non salvare i file di backup nel repository (contengono dati personali)
+
+### Vantaggi IndexedDB
+- Maggiore capacità di storage (50MB+ vs 5MB localStorage)
+- Performance migliori (operazioni asincrone)
+- Maggiore affidabilità e resistenza alla corruzione dati
 
 ## Licenza
 
@@ -88,4 +94,4 @@ Progetto privato per uso personale.
 
 ## Versione
 
-Versione 3.2 - Riepilogo bolli/commissioni e totali comprensivi
+Versione 4.0 - Migrazione a IndexedDB per storage dati con performance migliori e maggiore capacità

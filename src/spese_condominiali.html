@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestione Spese Condominiali</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/idb-keyval@6/dist/umd.js"></script>
     <style>
         * {
             margin: 0;
@@ -440,23 +441,42 @@
 
     <script>
         // Dati delle fatture
-        let bills = JSON.parse(localStorage.getItem('bills')) || [];
-
-        // Storico periodi chiusi
-        let periodHistory = JSON.parse(localStorage.getItem('periodHistory')) || [];
-
-        // Nomi proprietari
-        let myName = localStorage.getItem('myName') || 'Tu';
-        let neighborName = localStorage.getItem('neighborName') || 'Vicino';
-
-        // Letture iniziali periodo
-        let initialWaterReadings = JSON.parse(localStorage.getItem('initialWaterReadings')) || {
+        let bills = [];
+        let periodHistory = [];
+        let myName = 'Tu';
+        let neighborName = 'Vicino';
+        let initialWaterReadings = {
             myReading: null,
             neighborReading: null
         };
 
         // ID fattura in modifica (null se aggiunta nuova)
         let editingBillId = null;
+
+        // Carica dati da IndexedDB
+        async function loadData() {
+            try {
+                bills = await idbKeyval.get('bills') || [];
+                periodHistory = await idbKeyval.get('periodHistory') || [];
+                myName = await idbKeyval.get('myName') || 'Tu';
+                neighborName = await idbKeyval.get('neighborName') || 'Vicino';
+                initialWaterReadings = await idbKeyval.get('initialWaterReadings') || {
+                    myReading: null,
+                    neighborReading: null
+                };
+            } catch (error) {
+                console.error('Errore caricamento dati da IndexedDB:', error);
+                // Fallback a localStorage se IndexedDB fallisce
+                bills = JSON.parse(localStorage.getItem('bills')) || [];
+                periodHistory = JSON.parse(localStorage.getItem('periodHistory')) || [];
+                myName = localStorage.getItem('myName') || 'Tu';
+                neighborName = localStorage.getItem('neighborName') || 'Vicino';
+                initialWaterReadings = JSON.parse(localStorage.getItem('initialWaterReadings')) || {
+                    myReading: null,
+                    neighborReading: null
+                };
+            }
+        }
 
         // Elementi DOM
         const billForm = document.getElementById('billForm');
@@ -503,12 +523,11 @@
         }
 
         // Salva nomi
-        configForm.addEventListener('submit', function(e) {
+        configForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             myName = myNameInput.value || 'Tu';
             neighborName = neighborNameInput.value || 'Vicino';
-            localStorage.setItem('myName', myName);
-            localStorage.setItem('neighborName', neighborName);
+            await saveNames();
             updateNamesInUI();
             renderSummary();
             renderHistory();
@@ -516,13 +535,13 @@
         });
 
         // Salva letture iniziali
-        initialReadingsForm.addEventListener('submit', function(e) {
+        initialReadingsForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             initialWaterReadings = {
                 myReading: parseFloat(initialMyReading.value) || null,
                 neighborReading: parseFloat(initialNeighborReading.value) || null
             };
-            localStorage.setItem('initialWaterReadings', JSON.stringify(initialWaterReadings));
+            await saveInitialWaterReadings();
             alert('Letture iniziali salvate con successo!');
         });
 
@@ -619,8 +638,42 @@
         });
 
         // Salva dati
-        function saveBills() {
-            localStorage.setItem('bills', JSON.stringify(bills));
+        async function saveBills() {
+            try {
+                await idbKeyval.set('bills', bills);
+            } catch (error) {
+                console.error('Errore salvataggio bills:', error);
+                localStorage.setItem('bills', JSON.stringify(bills));
+            }
+        }
+
+        async function savePeriodHistory() {
+            try {
+                await idbKeyval.set('periodHistory', periodHistory);
+            } catch (error) {
+                console.error('Errore salvataggio periodHistory:', error);
+                localStorage.setItem('periodHistory', JSON.stringify(periodHistory));
+            }
+        }
+
+        async function saveNames() {
+            try {
+                await idbKeyval.set('myName', myName);
+                await idbKeyval.set('neighborName', neighborName);
+            } catch (error) {
+                console.error('Errore salvataggio nomi:', error);
+                localStorage.setItem('myName', myName);
+                localStorage.setItem('neighborName', neighborName);
+            }
+        }
+
+        async function saveInitialWaterReadings() {
+            try {
+                await idbKeyval.set('initialWaterReadings', initialWaterReadings);
+            } catch (error) {
+                console.error('Errore salvataggio letture acqua:', error);
+                localStorage.setItem('initialWaterReadings', JSON.stringify(initialWaterReadings));
+            }
         }
 
         // Renderizza lista fatture
@@ -672,10 +725,10 @@
         }
 
         // Elimina fattura
-        function deleteBill(id) {
+        async function deleteBill(id) {
             if (confirm('Sei sicuro di voler eliminare questa fattura?')) {
                 bills = bills.filter(bill => bill.id !== id);
-                saveBills();
+                await saveBills();
                 renderBills();
                 renderSummary();
             }
@@ -813,6 +866,12 @@
                     </div>
                 `;
                 summaryGrid.appendChild(statsCard);
+            } else {
+                // Rimuovi la card delle statistiche acqua se non ci sono fatture
+                const existingStatsCard = document.getElementById('waterStatsCard');
+                if (existingStatsCard) {
+                    existingStatsCard.remove();
+                }
             }
 
             const myLuceTotal = myLuce + myLuceBolli;
@@ -919,7 +978,7 @@
                 };
                 saveBills();
                 savePeriodHistory();
-                localStorage.setItem('initialWaterReadings', JSON.stringify(initialWaterReadings));
+                saveInitialWaterReadings();
                 initialMyReading.value = '';
                 initialNeighborReading.value = '';
                 renderBills();
@@ -929,13 +988,13 @@
         }
 
         // Reset letture acqua
-        function resetWaterReadings() {
+        async function resetWaterReadings() {
             if (confirm('Sei sicuro di voler resettare le letture iniziali dell\'acqua? Questa azione richiederà di reinserire le letture iniziali per il nuovo periodo.')) {
                 initialWaterReadings = {
                     myReading: null,
                     neighborReading: null
                 };
-                localStorage.setItem('initialWaterReadings', JSON.stringify(initialWaterReadings));
+                await saveInitialWaterReadings();
                 initialMyReading.value = '';
                 initialNeighborReading.value = '';
                 alert('Letture acqua resettate con successo!');
@@ -943,7 +1002,7 @@
         }
 
         // Chiudi periodo corrente
-        function closePeriod() {
+        async function closePeriod() {
             if (bills.length === 0) {
                 alert('Non ci sono fatture da chiudere in questo periodo.');
                 return;
@@ -1080,18 +1139,18 @@
 
             // Salva periodo nello storico
             periodHistory.push(period);
-            savePeriodHistory();
+            await savePeriodHistory();
 
             // Azzerare fatture correnti
             bills = [];
-            saveBills();
+            await saveBills();
 
             // Resetta letture iniziali per il nuovo periodo
             initialWaterReadings = {
                 myReading: null,
                 neighborReading: null
             };
-            localStorage.setItem('initialWaterReadings', JSON.stringify(initialWaterReadings));
+            await saveInitialWaterReadings();
             initialMyReading.value = '';
             initialNeighborReading.value = '';
 
@@ -1101,11 +1160,6 @@
             renderHistory();
 
             alert('Periodo chiuso con successo! I totali sono stati salvati nello storico.');
-        }
-
-        // Salva storico periodi
-        function savePeriodHistory() {
-            localStorage.setItem('periodHistory', JSON.stringify(periodHistory));
         }
 
         // Renderizza storico periodi
@@ -1130,10 +1184,10 @@
         }
 
         // Elimina periodo dallo storico
-        function deletePeriod(id) {
+        async function deletePeriod(id) {
             if (confirm('Sei sicuro di voler eliminare questo periodo dallo storico?')) {
                 periodHistory = periodHistory.filter(period => period.id !== id);
-                savePeriodHistory();
+                await savePeriodHistory();
                 renderHistory();
             }
         }
@@ -1299,12 +1353,11 @@
                         };
                     }
 
-                    // Salva in localStorage
+                    // Salva in IndexedDB
                     saveBills();
                     savePeriodHistory();
-                    localStorage.setItem('myName', myName);
-                    localStorage.setItem('neighborName', neighborName);
-                    localStorage.setItem('initialWaterReadings', JSON.stringify(initialWaterReadings));
+                    saveNames();
+                    saveInitialWaterReadings();
 
                     // Aggiorna UI
                     myNameInput.value = myName === 'Tu' ? '' : myName;
@@ -1332,10 +1385,10 @@
         let autoSaveInterval;
         function startAutoSave() {
             // Salva ogni 30 secondi
-            autoSaveInterval = setInterval(() => {
-                saveBills();
-                savePeriodHistory();
-                localStorage.setItem('initialWaterReadings', JSON.stringify(initialWaterReadings));
+            autoSaveInterval = setInterval(async () => {
+                await saveBills();
+                await savePeriodHistory();
+                await saveInitialWaterReadings();
                 console.log('Auto-salvataggio completato');
             }, 30000);
         }
@@ -1343,10 +1396,16 @@
         // Avvia auto-salvataggio
         startAutoSave();
 
-        // Render iniziale
-        renderBills();
-        renderSummary();
-        renderHistory();
+        // Carica dati e render iniziale
+        async function init() {
+            await loadData();
+            renderBills();
+            renderSummary();
+            renderHistory();
+        }
+
+        // Avvia l'applicazione
+        init();
     </script>
 </body>
 </html>
