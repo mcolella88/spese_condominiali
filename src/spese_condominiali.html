@@ -264,6 +264,23 @@
             </form>
         </div>
 
+        <!-- Configurazione letture iniziali periodo -->
+        <div class="form-section">
+            <h2>💧 Letture Iniziali Periodo</h2>
+            <p style="color: #666; margin-bottom: 15px; font-size: 14px;">Imposta le letture iniziali dei contatori individuali all'inizio di un nuovo periodo.</p>
+            <form id="initialReadingsForm">
+                <div class="form-group">
+                    <label for="initialMyReading" id="initialMyReadingLabel">Lettura Iniziale Mia (m³)</label>
+                    <input type="number" id="initialMyReading" step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                    <label for="initialNeighborReading" id="initialNeighborReadingLabel">Lettura Iniziale Vicino (m³)</label>
+                    <input type="number" id="initialNeighborReading" step="0.01" min="0">
+                </div>
+                <button type="submit">Salva Letture Iniziali</button>
+            </form>
+        </div>
+
         <!-- Form per aggiungere fattura -->
         <div class="form-section">
             <h2>Nuova Fattura</h2>
@@ -288,26 +305,14 @@
                     <input type="number" id="billAmount" step="0.01" min="0" required>
                 </div>
 
-                <div class="water-readings" id="waterReadings">
-                    <h3>Lettura Contatore Acqua</h3>
-                    
-                    <div class="form-group" id="firstWaterBillSection" style="display: none; background: #fff3cd; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
-                        <h4 style="color: #856404; margin-bottom: 10px;">⚠️ Prima Fattura Acqua</h4>
-                        <p style="color: #856404; margin-bottom: 15px; font-size: 14px;">Inserisci le letture precedenti per calcolare i consumi effettivi.</p>
-                        <div class="form-group">
-                            <label for="prevMyReading">Lettura Precedente Mia (m³)</label>
-                            <input type="number" id="prevMyReading" step="0.01" min="0">
-                        </div>
-                        <div class="form-group">
-                            <label for="prevNeighborReading">Lettura Precedente Vicino (m³)</label>
-                            <input type="number" id="prevNeighborReading" step="0.01" min="0">
-                        </div>
-                        <div class="form-group">
-                            <label for="prevTotalReading">Lettura Precedente Totale (m³)</label>
-                            <input type="number" id="prevTotalReading" step="0.01" min="0">
-                        </div>
-                    </div>
+                <div class="form-group" id="bolloSection">
+                    <label for="bollo">Bolli/Commissioni (€)</label>
+                    <input type="number" id="bollo" step="0.01" min="0" value="0">
+                </div>
 
+                <div class="water-readings" id="waterReadings">
+                    <h3>Dati Fattura SMAT</h3>
+                    
                     <div class="form-group">
                         <label for="billNumber">Numero Bolletta</label>
                         <input type="text" id="billNumber" placeholder="Es. 2200506006">
@@ -332,21 +337,8 @@
                     </div>
                     
                     <div class="form-group">
-                        <label for="myReading" id="myReadingLabel">Lettura Mia Corrente (m³)</label>
-                        <input type="number" id="myReading" step="0.01" min="0">
-                    </div>
-                    <div class="form-group">
-                        <label for="neighborReading" id="neighborReadingLabel">Lettura Vicino Corrente (m³)</label>
-                        <input type="number" id="neighborReading" step="0.01" min="0">
-                    </div>
-                    <div class="form-group">
-                        <label for="totalReading">Lettura Totale Fattura (m³)</label>
-                        <input type="number" id="totalReading" step="0.01" min="0">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="bollo">Bolli (€)</label>
-                        <input type="number" id="bollo" step="0.01" min="0" value="0">
+                        <label for="smatReading">Lettura SMAT (m³)</label>
+                        <input type="number" id="smatReading" step="0.01" min="0" placeholder="Lettura riportata in fattura">
                     </div>
 
                     <div class="form-group">
@@ -355,7 +347,8 @@
                     </div>
                 </div>
 
-                <button type="submit">Aggiungi Fattura</button>
+                <button type="submit" id="submitBillBtn">Aggiungi Fattura</button>
+                <button type="button" id="cancelEditBtn" onclick="cancelEdit()" style="display: none; background: #dc3545; margin-left: 10px;">Annulla Modifica</button>
             </form>
         </div>
 
@@ -370,9 +363,7 @@
                         <th>N. Bolletta</th>
                         <th>Periodo</th>
                         <th>Totale (€)</th>
-                        <th id="myReadingHeader">Lettura Mia</th>
-                        <th id="neighborReadingHeader">Lettura Vicino</th>
-                        <th>Lettura Totale</th>
+                        <th>Lettura SMAT</th>
                         <th>Azioni</th>
                     </tr>
                 </thead>
@@ -443,27 +434,26 @@
         let myName = localStorage.getItem('myName') || 'Tu';
         let neighborName = localStorage.getItem('neighborName') || 'Vicino';
 
-        // Letture precedenti acqua
-        let waterPreviousReadings = JSON.parse(localStorage.getItem('waterPreviousReadings')) || {
+        // Letture iniziali periodo
+        let initialWaterReadings = JSON.parse(localStorage.getItem('initialWaterReadings')) || {
             myReading: null,
-            neighborReading: null,
-            totalReading: null
+            neighborReading: null
         };
+
+        // ID fattura in modifica (null se aggiunta nuova)
+        let editingBillId = null;
 
         // Elementi DOM
         const billForm = document.getElementById('billForm');
         const configForm = document.getElementById('configForm');
+        const initialReadingsForm = document.getElementById('initialReadingsForm');
         const billType = document.getElementById('billType');
         const waterReadings = document.getElementById('waterReadings');
         const billsTableBody = document.getElementById('billsTableBody');
         const emptyState = document.getElementById('emptyState');
-        const myReading = document.getElementById('myReading');
-        const neighborReading = document.getElementById('neighborReading');
-        const totalReading = document.getElementById('totalReading');
-        const prevMyReading = document.getElementById('prevMyReading');
-        const prevNeighborReading = document.getElementById('prevNeighborReading');
-        const prevTotalReading = document.getElementById('prevTotalReading');
-        const firstWaterBillSection = document.getElementById('firstWaterBillSection');
+        const smatReading = document.getElementById('smatReading');
+        const initialMyReading = document.getElementById('initialMyReading');
+        const initialNeighborReading = document.getElementById('initialNeighborReading');
         const myNameInput = document.getElementById('myName');
         const neighborNameInput = document.getElementById('neighborName');
         const historyTableBody = document.getElementById('historyTableBody');
@@ -474,17 +464,21 @@
         const readingType = document.getElementById('readingType');
         const bollo = document.getElementById('bollo');
         const acconto = document.getElementById('acconto');
+        const submitBillBtn = document.getElementById('submitBillBtn');
+        const cancelEditBtn = document.getElementById('cancelEditBtn');
 
         // Carica nomi salvati
         myNameInput.value = myName === 'Tu' ? '' : myName;
         neighborNameInput.value = neighborName === 'Vicino' ? '' : neighborName;
 
+        // Carica letture iniziali salvate
+        initialMyReading.value = initialWaterReadings.myReading !== null ? initialWaterReadings.myReading : '';
+        initialNeighborReading.value = initialWaterReadings.neighborReading !== null ? initialWaterReadings.neighborReading : '';
+
         // Aggiorna interfaccia con i nomi
         function updateNamesInUI() {
-            document.getElementById('myReadingLabel').textContent = `Lettura ${myName} Corrente (m³)`;
-            document.getElementById('neighborReadingLabel').textContent = `Lettura ${neighborName} Corrente (m³)`;
-            document.getElementById('myReadingHeader').textContent = `Lettura ${myName}`;
-            document.getElementById('neighborReadingHeader').textContent = `Lettura ${neighborName}`;
+            document.getElementById('initialMyReadingLabel').textContent = `Lettura Iniziale ${myName} (m³)`;
+            document.getElementById('initialNeighborReadingLabel').textContent = `Lettura Iniziale ${neighborName} (m³)`;
             document.getElementById('mySummaryTitle').textContent = myName;
             document.getElementById('neighborSummaryTitle').textContent = neighborName;
             document.getElementById('historyMyHeader').textContent = myName;
@@ -504,6 +498,17 @@
             alert('Nomi salvati con successo!');
         });
 
+        // Salva letture iniziali
+        initialReadingsForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            initialWaterReadings = {
+                myReading: parseFloat(initialMyReading.value) || null,
+                neighborReading: parseFloat(initialNeighborReading.value) || null
+            };
+            localStorage.setItem('initialWaterReadings', JSON.stringify(initialWaterReadings));
+            alert('Letture iniziali salvate con successo!');
+        });
+
         // Inizializza nomi nell'interfaccia
         updateNamesInUI();
 
@@ -511,45 +516,15 @@
         billType.addEventListener('change', function() {
             if (this.value === 'acqua') {
                 waterReadings.classList.add('active');
-                myReading.required = true;
-                neighborReading.required = true;
-                
-                // Controlla se è la prima fattura d'acqua
-                const hasPreviousWaterReadings = waterPreviousReadings.myReading !== null;
-                
-                if (!hasPreviousWaterReadings) {
-                    firstWaterBillSection.style.display = 'block';
-                    prevMyReading.required = true;
-                    prevNeighborReading.required = true;
-                    prevTotalReading.required = true;
-                } else {
-                    firstWaterBillSection.style.display = 'none';
-                    prevMyReading.required = false;
-                    prevNeighborReading.required = false;
-                    prevTotalReading.required = false;
-                    prevMyReading.value = '';
-                    prevNeighborReading.value = '';
-                    prevTotalReading.value = '';
-                }
+                smatReading.required = true;
             } else {
                 waterReadings.classList.remove('active');
-                myReading.required = false;
-                neighborReading.required = false;
-                myReading.value = '';
-                neighborReading.value = '';
-                totalReading.value = '';
-                firstWaterBillSection.style.display = 'none';
-                prevMyReading.required = false;
-                prevNeighborReading.required = false;
-                prevTotalReading.required = false;
-                prevMyReading.value = '';
-                prevNeighborReading.value = '';
-                prevTotalReading.value = '';
+                smatReading.required = false;
+                smatReading.value = '';
                 billNumber.value = '';
                 periodFrom.value = '';
                 periodTo.value = '';
                 readingType.value = 'rilevata';
-                bollo.value = '0';
                 acconto.value = '0';
             }
         });
@@ -557,113 +532,65 @@
         // Imposta data di oggi
         document.getElementById('billDate').valueAsDate = new Date();
 
-        // Aggiungi fattura
+        // Aggiungi/Aggiorna fattura
         billForm.addEventListener('submit', function(e) {
             e.preventDefault();
 
             let bill = {
-                id: Date.now(),
+                id: editingBillId || Date.now(),
                 type: billType.value,
                 date: document.getElementById('billDate').value,
-                amount: parseFloat(document.getElementById('billAmount').value)
+                amount: parseFloat(document.getElementById('billAmount').value),
+                bollo: parseFloat(bollo.value) || 0
             };
 
             if (billType.value === 'acqua') {
-                const currentMyReading = parseFloat(myReading.value);
-                const currentNeighborReading = parseFloat(neighborReading.value);
-                const currentTotalReading = totalReading.value ? parseFloat(totalReading.value) : null;
+                const currentSmatReading = parseFloat(smatReading.value);
                 
-                // Determina le letture precedenti
-                let prevMy = waterPreviousReadings.myReading;
-                let prevNeighbor = waterPreviousReadings.neighborReading;
-                let prevTotal = waterPreviousReadings.totalReading;
-                
-                // Se è la prima fattura, usa le letture precedenti inserite
-                if (prevMy === null) {
-                    prevMy = parseFloat(prevMyReading.value);
-                    prevNeighbor = parseFloat(prevNeighborReading.value);
-                    prevTotal = prevTotalReading.value ? parseFloat(prevTotalReading.value) : null;
-                }
-                
-                // Calcola consumi effettivi
-                const myConsumption = currentMyReading - prevMy;
-                const neighborConsumption = currentNeighborReading - prevNeighbor;
-                let totalConsumption = null;
-                
-                if (currentTotalReading !== null && prevTotal !== null) {
-                    totalConsumption = currentTotalReading - prevTotal;
-                } else {
-                    // Se non abbiamo il totale precedente, usa la somma dei consumi individuali
-                    totalConsumption = myConsumption + neighborConsumption;
-                }
-                
-                // Calcola importo al mq consumo
-                let pricePerMq = 0;
-                if (totalConsumption > 0) {
-                    pricePerMq = bill.amount / totalConsumption;
-                }
-                
-                bill.myReading = currentMyReading;
-                bill.neighborReading = currentNeighborReading;
-                bill.totalReading = currentTotalReading;
-                bill.prevMyReading = prevMy;
-                bill.prevNeighborReading = prevNeighbor;
-                bill.prevTotalReading = prevTotal;
-                bill.myConsumption = myConsumption;
-                bill.neighborConsumption = neighborConsumption;
-                bill.totalConsumption = totalConsumption;
-                bill.pricePerMq = pricePerMq;
+                bill.smatReading = currentSmatReading;
                 bill.billNumber = billNumber.value || null;
                 bill.periodFrom = periodFrom.value || null;
                 bill.periodTo = periodTo.value || null;
                 bill.readingType = readingType.value;
-                bill.bollo = parseFloat(bollo.value) || 0;
                 bill.acconto = parseFloat(acconto.value) || 0;
-                
-                // Aggiorna letture precedenti per la prossima fattura
-                waterPreviousReadings = {
-                    myReading: currentMyReading,
-                    neighborReading: currentNeighborReading,
-                    totalReading: currentTotalReading
-                };
-                localStorage.setItem('waterPreviousReadings', JSON.stringify(waterPreviousReadings));
             } else {
-                bill.myReading = null;
-                bill.neighborReading = null;
-                bill.totalReading = null;
-                bill.prevMyReading = null;
-                bill.prevNeighborReading = null;
-                bill.prevTotalReading = null;
-                bill.myConsumption = null;
-                bill.neighborConsumption = null;
-                bill.totalConsumption = null;
-                bill.pricePerMq = null;
+                bill.smatReading = null;
                 bill.billNumber = null;
                 bill.periodFrom = null;
                 bill.periodTo = null;
                 bill.readingType = null;
-                bill.bollo = null;
                 bill.acconto = null;
             }
 
-            bills.push(bill);
+            if (editingBillId) {
+                // Aggiorna fattura esistente
+                const index = bills.findIndex(b => b.id === editingBillId);
+                if (index !== -1) {
+                    bills[index] = bill;
+                }
+            } else {
+                // Aggiungi nuova fattura
+                bills.push(bill);
+            }
+
             saveBills();
             renderBills();
             renderSummary();
+            
+            // Reset form e modalità
             billForm.reset();
             document.getElementById('billDate').valueAsDate = new Date();
             waterReadings.classList.remove('active');
-            totalReading.value = '';
-            firstWaterBillSection.style.display = 'none';
-            prevMyReading.value = '';
-            prevNeighborReading.value = '';
-            prevTotalReading.value = '';
+            smatReading.value = '';
             billNumber.value = '';
             periodFrom.value = '';
             periodTo.value = '';
             readingType.value = 'rilevata';
             bollo.value = '0';
             acconto.value = '0';
+            editingBillId = null;
+            submitBillBtn.textContent = 'Aggiungi Fattura';
+            cancelEditBtn.style.display = 'none';
         });
 
         // Salva dati
@@ -691,6 +618,11 @@
                     billNumberDisplay = bill.billNumber;
                 }
                 
+                let smatReadingDisplay = '-';
+                if (bill.type === 'acqua' && bill.smatReading !== null) {
+                    smatReadingDisplay = bill.smatReading.toFixed(2) + ' m³';
+                }
+                
                 return `
                 <tr>
                     <td>${formatDate(bill.date)}</td>
@@ -698,10 +630,9 @@
                     <td>${billNumberDisplay}</td>
                     <td>${periodDisplay}</td>
                     <td>€${bill.amount.toFixed(2)}</td>
-                    <td>${bill.myReading ? bill.myReading.toFixed(2) + ' m³' : '-'}</td>
-                    <td>${bill.neighborReading ? bill.neighborReading.toFixed(2) + ' m³' : '-'}</td>
-                    <td>${bill.totalReading ? bill.totalReading.toFixed(2) + ' m³' : '-'}</td>
+                    <td>${smatReadingDisplay}</td>
                     <td>
+                        <button onclick="editBill(${bill.id})" style="background: #17a2b8; margin-right: 5px;">Modifica</button>
                         <button class="delete-btn" onclick="deleteBill(${bill.id})">Elimina</button>
                     </td>
                 </tr>
@@ -719,70 +650,172 @@
             }
         }
 
+        // Modifica fattura
+        function editBill(id) {
+            const bill = bills.find(b => b.id === id);
+            if (!bill) return;
+
+            // Popola il form con i dati della fattura
+            document.getElementById('billType').value = bill.type;
+            document.getElementById('billDate').value = bill.date;
+            document.getElementById('billAmount').value = bill.amount;
+            document.getElementById('bollo').value = bill.bollo || 0;
+
+            // Mostra campi specifici per acqua
+            if (bill.type === 'acqua') {
+                waterReadings.classList.add('active');
+                smatReading.value = bill.smatReading || '';
+                billNumber.value = bill.billNumber || '';
+                periodFrom.value = bill.periodFrom || '';
+                periodTo.value = bill.periodTo || '';
+                readingType.value = bill.readingType || 'rilevata';
+                acconto.value = bill.acconto || 0;
+            } else {
+                waterReadings.classList.remove('active');
+            }
+
+            // Imposta modalità modifica
+            editingBillId = id;
+            submitBillBtn.textContent = 'Aggiorna Fattura';
+            cancelEditBtn.style.display = 'inline-block';
+            
+            // Scroll al form
+            billForm.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Annulla modifica
+        function cancelEdit() {
+            // Reset form
+            billForm.reset();
+            document.getElementById('billDate').valueAsDate = new Date();
+            waterReadings.classList.remove('active');
+            smatReading.value = '';
+            billNumber.value = '';
+            periodFrom.value = '';
+            periodTo.value = '';
+            readingType.value = 'rilevata';
+            bollo.value = '0';
+            acconto.value = '0';
+            
+            // Reset modalità
+            editingBillId = null;
+            submitBillBtn.textContent = 'Aggiungi Fattura';
+            cancelEditBtn.style.display = 'none';
+        }
+
         // Calcola riepilogo
         function renderSummary() {
             let myTotal = 0;
             let neighborTotal = 0;
             let myLuce = 0;
             let neighborLuce = 0;
+            let myLuceBolli = 0;
+            let neighborLuceBolli = 0;
             let myAcqua = 0;
             let neighborAcqua = 0;
+            let myAcquaBolli = 0;
+            let neighborAcquaBolli = 0;
             let myAssicurazione = 0;
             let neighborAssicurazione = 0;
-            let totalWaterConsumption = 0;
-            let totalWaterAmount = 0;
-            let avgPricePerMq = 0;
+            let myAssicurazioneBolli = 0;
+            let neighborAssicurazioneBolli = 0;
 
             bills.forEach(bill => {
                 if (bill.type === 'luce') {
                     const half = bill.amount / 2;
+                    const halfBolli = (bill.bollo || 0) / 2;
                     myLuce += half;
                     neighborLuce += half;
+                    myLuceBolli += halfBolli;
+                    neighborLuceBolli += halfBolli;
                 } else if (bill.type === 'assicurazione') {
                     const half = bill.amount / 2;
+                    const halfBolli = (bill.bollo || 0) / 2;
                     myAssicurazione += half;
                     neighborAssicurazione += half;
-                } else if (bill.type === 'acqua') {
-                    // Usa i consumi effettivi per calcolare la ripartizione
-                    // Gestisci fatture vecchie che non hanno i campi consumo
-                    const myCons = bill.myConsumption !== undefined && bill.myConsumption !== null ? bill.myConsumption : 
-                                  (bill.myReading && bill.prevMyReading !== null && bill.prevMyReading !== undefined ? bill.myReading - bill.prevMyReading : bill.myReading);
-                    const neighborCons = bill.neighborConsumption !== undefined && bill.neighborConsumption !== null ? bill.neighborConsumption : 
-                                        (bill.neighborReading && bill.prevNeighborReading !== null && bill.prevNeighborReading !== undefined ? bill.neighborReading - bill.prevNeighborReading : bill.neighborReading);
-                    const totalCons = bill.totalConsumption !== undefined && bill.totalConsumption !== null ? bill.totalConsumption : 
-                                     (myCons + neighborCons);
-                    
-                    if (totalCons > 0) {
-                        const myShare = (myCons / totalCons) * bill.amount;
-                        const neighborShare = (neighborCons / totalCons) * bill.amount;
-                        myAcqua += myShare;
-                        neighborAcqua += neighborShare;
-                        totalWaterConsumption += totalCons;
-                        totalWaterAmount += bill.amount;
-                    }
+                    myAssicurazioneBolli += halfBolli;
+                    neighborAssicurazioneBolli += halfBolli;
                 }
             });
 
-            myTotal = myLuce + myAcqua + myAssicurazione;
-            neighborTotal = neighborLuce + neighborAcqua + neighborAssicurazione;
-            
-            // Calcola prezzo medio al mq
-            if (totalWaterConsumption > 0) {
-                avgPricePerMq = totalWaterAmount / totalWaterConsumption;
+            // Calcola acqua solo se ci sono letture iniziali impostate
+            const waterBills = bills.filter(bill => bill.type === 'acqua');
+            if (waterBills.length > 0 && initialWaterReadings.myReading !== null && initialWaterReadings.neighborReading !== null) {
+                // Mostra solo le fatture acqua accumulate, il calcolo finale sarà fatto alla chiusura periodo
+                const totalWaterAmount = waterBills.reduce((sum, bill) => sum + bill.amount, 0);
+                const totalWaterBolli = waterBills.reduce((sum, bill) => sum + (bill.bollo || 0), 0);
+                
+                // Aggiorna statistiche acqua
+                const summaryGrid = document.querySelector('.summary-grid');
+                const existingStatsCard = document.getElementById('waterStatsCard');
+                if (existingStatsCard) {
+                    existingStatsCard.remove();
+                }
+                
+                const statsCard = document.createElement('div');
+                statsCard.className = 'summary-card';
+                statsCard.id = 'waterStatsCard';
+                statsCard.innerHTML = `
+                    <h3>📊 Fatture Acqua Periodo</h3>
+                    <div class="summary-row">
+                        <span>Totale Fatture</span>
+                        <span>€${totalWaterAmount.toFixed(2)}</span>
+                    </div>
+                    <div class="summary-row">
+                        <span>Bolli/Commissioni</span>
+                        <span>€${totalWaterBolli.toFixed(2)}</span>
+                    </div>
+                    <div class="summary-row">
+                        <span>Totale + Bolli</span>
+                        <span>€${(totalWaterAmount + totalWaterBolli).toFixed(2)}</span>
+                    </div>
+                    <div class="summary-row">
+                        <span>Numero Fatture</span>
+                        <span>${waterBills.length}</span>
+                    </div>
+                    <div class="summary-row" style="color: #ffc107; font-size: 0.9em; margin-top: 10px;">
+                        <span>⚠️ Calcolo ripartizione alla chiusura periodo</span>
+                    </div>
+                `;
+                summaryGrid.appendChild(statsCard);
             }
+
+            const myLuceTotal = myLuce + myLuceBolli;
+            const neighborLuceTotal = neighborLuce + neighborLuceBolli;
+            const myAssicurazioneTotal = myAssicurazione + myAssicurazioneBolli;
+            const neighborAssicurazioneTotal = neighborAssicurazione + neighborAssicurazioneBolli;
+
+            myTotal = myLuceTotal + myAcqua + myAssicurazioneTotal;
+            neighborTotal = neighborLuceTotal + neighborAcqua + neighborAssicurazioneTotal;
 
             document.getElementById('mySummary').innerHTML = `
                 <div class="summary-row">
                     <span>Luce</span>
                     <span>€${myLuce.toFixed(2)}</span>
                 </div>
+                <div class="summary-row" style="font-size: 0.9em; color: #666;">
+                    <span>Bolli Luce</span>
+                    <span>€${myLuceBolli.toFixed(2)}</span>
+                </div>
+                <div class="summary-row" style="font-weight: 600;">
+                    <span>Totale Luce</span>
+                    <span>€${myLuceTotal.toFixed(2)}</span>
+                </div>
                 <div class="summary-row">
                     <span>Acqua</span>
-                    <span>€${myAcqua.toFixed(2)}</span>
+                    <span>€${myAcqua.toFixed(2)} <small style="color: #999">(calcolo finale)</small></span>
                 </div>
                 <div class="summary-row">
                     <span>Assicurazione</span>
                     <span>€${myAssicurazione.toFixed(2)}</span>
+                </div>
+                <div class="summary-row" style="font-size: 0.9em; color: #666;">
+                    <span>Bolli Assicurazione</span>
+                    <span>€${myAssicurazioneBolli.toFixed(2)}</span>
+                </div>
+                <div class="summary-row" style="font-weight: 600;">
+                    <span>Totale Assicurazione</span>
+                    <span>€${myAssicurazioneTotal.toFixed(2)}</span>
                 </div>
                 <div class="summary-row">
                     <span>TOTALE</span>
@@ -795,49 +828,35 @@
                     <span>Luce</span>
                     <span>€${neighborLuce.toFixed(2)}</span>
                 </div>
+                <div class="summary-row" style="font-size: 0.9em; color: #666;">
+                    <span>Bolli Luce</span>
+                    <span>€${neighborLuceBolli.toFixed(2)}</span>
+                </div>
+                <div class="summary-row" style="font-weight: 600;">
+                    <span>Totale Luce</span>
+                    <span>€${neighborLuceTotal.toFixed(2)}</span>
+                </div>
                 <div class="summary-row">
                     <span>Acqua</span>
-                    <span>€${neighborAcqua.toFixed(2)}</span>
+                    <span>€${neighborAcqua.toFixed(2)} <small style="color: #999">(calcolo finale)</small></span>
                 </div>
                 <div class="summary-row">
                     <span>Assicurazione</span>
                     <span>€${neighborAssicurazione.toFixed(2)}</span>
+                </div>
+                <div class="summary-row" style="font-size: 0.9em; color: #666;">
+                    <span>Bolli Assicurazione</span>
+                    <span>€${neighborAssicurazioneBolli.toFixed(2)}</span>
+                </div>
+                <div class="summary-row" style="font-weight: 600;">
+                    <span>Totale Assicurazione</span>
+                    <span>€${neighborAssicurazioneTotal.toFixed(2)}</span>
                 </div>
                 <div class="summary-row">
                     <span>TOTALE</span>
                     <span>€${neighborTotal.toFixed(2)}</span>
                 </div>
             `;
-            
-            // Aggiungi card per statistiche acqua se ci sono fatture acqua
-            if (totalWaterConsumption > 0) {
-                const summaryGrid = document.querySelector('.summary-grid');
-                // Rimuovi card statistiche esistenti se presenti
-                const existingStatsCard = document.getElementById('waterStatsCard');
-                if (existingStatsCard) {
-                    existingStatsCard.remove();
-                }
-                
-                const statsCard = document.createElement('div');
-                statsCard.className = 'summary-card';
-                statsCard.id = 'waterStatsCard';
-                statsCard.innerHTML = `
-                    <h3>📊 Statistiche Acqua</h3>
-                    <div class="summary-row">
-                        <span>Consumo Totale</span>
-                        <span>${totalWaterConsumption.toFixed(2)} m³</span>
-                    </div>
-                    <div class="summary-row">
-                        <span>Importo Totale</span>
-                        <span>€${totalWaterAmount.toFixed(2)}</span>
-                    </div>
-                    <div class="summary-row">
-                        <span>Prezzo Medio/m³</span>
-                        <span>€${avgPricePerMq.toFixed(4)}</span>
-                    </div>
-                `;
-                summaryGrid.appendChild(statsCard);
-            }
         }
 
         // Helper functions
@@ -859,14 +878,15 @@
             if (confirm('Sei sicuro di voler cancellare tutti i dati? Questa azione è irreversibile.')) {
                 bills = [];
                 periodHistory = [];
-                waterPreviousReadings = {
+                initialWaterReadings = {
                     myReading: null,
-                    neighborReading: null,
-                    totalReading: null
+                    neighborReading: null
                 };
                 saveBills();
                 savePeriodHistory();
-                localStorage.setItem('waterPreviousReadings', JSON.stringify(waterPreviousReadings));
+                localStorage.setItem('initialWaterReadings', JSON.stringify(initialWaterReadings));
+                initialMyReading.value = '';
+                initialNeighborReading.value = '';
                 renderBills();
                 renderSummary();
                 renderHistory();
@@ -875,14 +895,14 @@
 
         // Reset letture acqua
         function resetWaterReadings() {
-            if (confirm('Sei sicuro di voler resettare le letture precedenti dell\'acqua? Questa azione richiederà di reinserire le letture precedenti alla prossima fattura d\'acqua.')) {
-                waterPreviousReadings = {
+            if (confirm('Sei sicuro di voler resettare le letture iniziali dell\'acqua? Questa azione richiederà di reinserire le letture iniziali per il nuovo periodo.')) {
+                initialWaterReadings = {
                     myReading: null,
-                    neighborReading: null,
-                    totalReading: null
+                    neighborReading: null
                 };
-                localStorage.setItem('waterPreviousReadings', JSON.stringify(waterPreviousReadings));
-                prevTotalReading.value = '';
+                localStorage.setItem('initialWaterReadings', JSON.stringify(initialWaterReadings));
+                initialMyReading.value = '';
+                initialNeighborReading.value = '';
                 alert('Letture acqua resettate con successo!');
             }
         }
@@ -894,6 +914,36 @@
                 return;
             }
 
+            // Controlla se ci sono fatture acqua
+            const waterBills = bills.filter(bill => bill.type === 'acqua');
+            let finalMy = null;
+            let finalNeighbor = null;
+            
+            if (waterBills.length > 0) {
+                // Verifica che siano state impostate le letture iniziali
+                if (initialWaterReadings.myReading === null || initialWaterReadings.neighborReading === null) {
+                    alert('Prima di chiudere il periodo con fatture acqua, devi impostare le letture iniziali nella sezione "Letture Iniziali Periodo".');
+                    return;
+                }
+                
+                // Chiedi le letture finali
+                const finalMyReading = prompt(`Inserisci la lettura finale del contatore ${myName} (m³):`);
+                const finalNeighborReading = prompt(`Inserisci la lettura finale del contatore ${neighborName} (m³):`);
+                
+                if (finalMyReading === null || finalNeighborReading === null || finalMyReading === '' || finalNeighborReading === '') {
+                    alert('Devi inserire entrambe le letture finali per chiudere il periodo.');
+                    return;
+                }
+                
+                finalMy = parseFloat(finalMyReading);
+                finalNeighbor = parseFloat(finalNeighborReading);
+                
+                if (isNaN(finalMy) || isNaN(finalNeighbor)) {
+                    alert('Le letture devono essere numeri validi.');
+                    return;
+                }
+            }
+
             if (!confirm('Sei sicuro di voler chiudere questo periodo? Le fatture correnti verranno archiviate e i totali azzerati.')) {
                 return;
             }
@@ -903,41 +953,70 @@
             let neighborTotal = 0;
             let myLuce = 0;
             let neighborLuce = 0;
+            let myLuceBolli = 0;
+            let neighborLuceBolli = 0;
             let myAcqua = 0;
             let neighborAcqua = 0;
+            let myAcquaBolli = 0;
+            let neighborAcquaBolli = 0;
             let myAssicurazione = 0;
             let neighborAssicurazione = 0;
+            let myAssicurazioneBolli = 0;
+            let neighborAssicurazioneBolli = 0;
 
             bills.forEach(bill => {
                 if (bill.type === 'luce') {
                     const half = bill.amount / 2;
+                    const halfBolli = (bill.bollo || 0) / 2;
                     myLuce += half;
                     neighborLuce += half;
+                    myLuceBolli += halfBolli;
+                    neighborLuceBolli += halfBolli;
                 } else if (bill.type === 'assicurazione') {
                     const half = bill.amount / 2;
+                    const halfBolli = (bill.bollo || 0) / 2;
                     myAssicurazione += half;
                     neighborAssicurazione += half;
-                } else if (bill.type === 'acqua') {
-                    // Usa i consumi effettivi per calcolare la ripartizione
-                    // Gestisci fatture vecchie che non hanno i campi consumo
-                    const myCons = bill.myConsumption !== undefined && bill.myConsumption !== null ? bill.myConsumption : 
-                                  (bill.myReading && bill.prevMyReading !== null && bill.prevMyReading !== undefined ? bill.myReading - bill.prevMyReading : bill.myReading);
-                    const neighborCons = bill.neighborConsumption !== undefined && bill.neighborConsumption !== null ? bill.neighborConsumption : 
-                                        (bill.neighborReading && bill.prevNeighborReading !== null && bill.prevNeighborReading !== undefined ? bill.neighborReading - bill.prevNeighborReading : bill.neighborReading);
-                    const totalCons = bill.totalConsumption !== undefined && bill.totalConsumption !== null ? bill.totalConsumption : 
-                                     (myCons + neighborCons);
-                    
-                    if (totalCons > 0) {
-                        const myShare = (myCons / totalCons) * bill.amount;
-                        const neighborShare = (neighborCons / totalCons) * bill.amount;
-                        myAcqua += myShare;
-                        neighborAcqua += neighborShare;
-                    }
+                    myAssicurazioneBolli += halfBolli;
+                    neighborAssicurazioneBolli += halfBolli;
                 }
             });
 
-            myTotal = myLuce + myAcqua + myAssicurazione;
-            neighborTotal = neighborLuce + neighborAcqua + neighborAssicurazione;
+            // Calcola acqua se ci sono fatture
+            if (waterBills.length > 0 && finalMy !== null && finalNeighbor !== null) {
+                const myConsumption = finalMy - initialWaterReadings.myReading;
+                const neighborConsumption = finalNeighbor - initialWaterReadings.neighborReading;
+                const totalConsumption = myConsumption + neighborConsumption;
+                
+                const totalWaterAmount = waterBills.reduce((sum, bill) => sum + bill.amount, 0);
+                const totalWaterBolli = waterBills.reduce((sum, bill) => sum + (bill.bollo || 0), 0);
+                
+                let pricePerMq = 0;
+                if (totalConsumption > 0) {
+                    pricePerMq = totalWaterAmount / totalConsumption;
+                }
+                
+                if (totalConsumption > 0) {
+                    myAcqua = myConsumption * pricePerMq;
+                    neighborAcqua = neighborConsumption * pricePerMq;
+                    
+                    // Ripartisci anche i bolli proporzionalmente
+                    const myBolliShare = (myConsumption / totalConsumption) * totalWaterBolli;
+                    const neighborBolliShare = (neighborConsumption / totalConsumption) * totalWaterBolli;
+                    myAcquaBolli = myBolliShare;
+                    neighborAcquaBolli = neighborBolliShare;
+                }
+            }
+
+            const myLuceTotal = myLuce + myLuceBolli;
+            const neighborLuceTotal = neighborLuce + neighborLuceBolli;
+            const myAssicurazioneTotal = myAssicurazione + myAssicurazioneBolli;
+            const neighborAssicurazioneTotal = neighborAssicurazione + neighborAssicurazioneBolli;
+            const myAcquaTotal = myAcqua + myAcquaBolli;
+            const neighborAcquaTotal = neighborAcqua + neighborAcquaBolli;
+
+            myTotal = myLuceTotal + myAcquaTotal + myAssicurazioneTotal;
+            neighborTotal = neighborLuceTotal + neighborAcquaTotal + neighborAssicurazioneTotal;
 
             // Crea periodo
             const period = {
@@ -950,11 +1029,18 @@
                 neighborTotal: neighborTotal,
                 myLuce: myLuce,
                 neighborLuce: neighborLuce,
+                myLuceBolli: myLuceBolli,
+                neighborLuceBolli: neighborLuceBolli,
                 myAcqua: myAcqua,
                 neighborAcqua: neighborAcqua,
+                myAcquaBolli: myAcquaBolli,
+                neighborAcquaBolli: neighborAcquaBolli,
                 myAssicurazione: myAssicurazione,
                 neighborAssicurazione: neighborAssicurazione,
-                bills: [...bills]
+                myAssicurazioneBolli: myAssicurazioneBolli,
+                neighborAssicurazioneBolli: neighborAssicurazioneBolli,
+                bills: [...bills],
+                initialWaterReadings: {...initialWaterReadings}
             };
 
             // Salva periodo nello storico
@@ -964,6 +1050,15 @@
             // Azzerare fatture correnti
             bills = [];
             saveBills();
+
+            // Resetta letture iniziali per il nuovo periodo
+            initialWaterReadings = {
+                myReading: null,
+                neighborReading: null
+            };
+            localStorage.setItem('initialWaterReadings', JSON.stringify(initialWaterReadings));
+            initialMyReading.value = '';
+            initialNeighborReading.value = '';
 
             // Aggiorna UI
             renderBills();
@@ -1028,7 +1123,7 @@
 
             // Crea foglio riepilogo periodi
             const summaryData = [
-                ['Periodo', 'Proprietario 1', 'Totale 1 (€)', 'Luce 1 (€)', 'Acqua 1 (€)', 'Assicurazione 1 (€)', 'Proprietario 2', 'Totale 2 (€)', 'Luce 2 (€)', 'Acqua 2 (€)', 'Assicurazione 2 (€)']
+                ['Periodo', 'Proprietario 1', 'Totale 1 (€)', 'Luce 1 (€)', 'Bolli Luce 1 (€)', 'Acqua 1 (€)', 'Bolli Acqua 1 (€)', 'Assicurazione 1 (€)', 'Bolli Assicurazione 1 (€)', 'Proprietario 2', 'Totale 2 (€)', 'Luce 2 (€)', 'Bolli Luce 2 (€)', 'Acqua 2 (€)', 'Bolli Acqua 2 (€)', 'Assicurazione 2 (€)', 'Bolli Assicurazione 2 (€)']
             ];
 
             periodHistory.forEach(period => {
@@ -1037,13 +1132,19 @@
                     period.myName,
                     period.myTotal.toFixed(2),
                     period.myLuce.toFixed(2),
+                    period.myLuceBolli ? period.myLuceBolli.toFixed(2) : '0.00',
                     period.myAcqua.toFixed(2),
+                    period.myAcquaBolli ? period.myAcquaBolli.toFixed(2) : '0.00',
                     period.myAssicurazione.toFixed(2),
+                    period.myAssicurazioneBolli ? period.myAssicurazioneBolli.toFixed(2) : '0.00',
                     period.neighborName,
                     period.neighborTotal.toFixed(2),
                     period.neighborLuce.toFixed(2),
+                    period.neighborLuceBolli ? period.neighborLuceBolli.toFixed(2) : '0.00',
                     period.neighborAcqua.toFixed(2),
-                    period.neighborAssicurazione.toFixed(2)
+                    period.neighborAcquaBolli ? period.neighborAcquaBolli.toFixed(2) : '0.00',
+                    period.neighborAssicurazione.toFixed(2),
+                    period.neighborAssicurazioneBolli ? period.neighborAssicurazioneBolli.toFixed(2) : '0.00'
                 ]);
             });
 
@@ -1053,7 +1154,7 @@
             // Crea foglio dettagli fatture per ogni periodo
             periodHistory.forEach((period, index) => {
                 const billData = [
-                    ['Data', 'Tipo', 'N. Bolletta', 'Periodo DAL', 'Periodo AL', 'Tipo Lettura', 'Totale (€)', 'Bolli (€)', 'Acconto (€)', `Lettura ${period.myName} (m³)`, `Lettura ${period.neighborName} (m³)`, 'Lettura Totale (m³)', 'Consumo Totale (m³)', 'Prezzo/m³ (€)']
+                    ['Data', 'Tipo', 'N. Bolletta', 'Periodo DAL', 'Periodo AL', 'Tipo Lettura', 'Totale (€)', 'Bolli/Commissioni (€)', 'Acconto (€)', 'Lettura SMAT (m³)']
                 ];
 
                 period.bills.forEach(bill => {
@@ -1063,8 +1164,7 @@
                     let readingType = bill.readingType || '-';
                     let bollo = bill.bollo !== null && bill.bollo !== undefined ? bill.bollo.toFixed(2) : '-';
                     let acconto = bill.acconto !== null && bill.acconto !== undefined ? bill.acconto.toFixed(2) : '-';
-                    let pricePerMq = bill.pricePerMq !== null && bill.pricePerMq !== undefined ? bill.pricePerMq.toFixed(4) : '-';
-                    let totalConsumption = bill.totalConsumption !== null && bill.totalConsumption !== undefined ? bill.totalConsumption.toFixed(2) : '-';
+                    let smatReading = bill.smatReading !== null && bill.smatReading !== undefined ? bill.smatReading.toFixed(2) : '-';
                     
                     billData.push([
                         formatDate(bill.date),
@@ -1076,11 +1176,7 @@
                         bill.amount.toFixed(2),
                         bollo,
                         acconto,
-                        bill.myReading ? bill.myReading.toFixed(2) : '-',
-                        bill.neighborReading ? bill.neighborReading.toFixed(2) : '-',
-                        bill.totalReading ? bill.totalReading.toFixed(2) : '-',
-                        totalConsumption,
-                        pricePerMq
+                        smatReading
                     ]);
                 });
 
@@ -1099,13 +1195,13 @@
         // Backup dati in JSON
         function backupData() {
             const backupData = {
-                version: '1.0',
+                version: '3.2',
                 backupDate: new Date().toISOString(),
                 bills: bills,
                 periodHistory: periodHistory,
                 myName: myName,
                 neighborName: neighborName,
-                waterPreviousReadings: waterPreviousReadings
+                initialWaterReadings: initialWaterReadings
             };
 
             const dataStr = JSON.stringify(backupData, null, 2);
@@ -1147,22 +1243,35 @@
                     periodHistory = backupData.periodHistory || [];
                     myName = backupData.myName || 'Tu';
                     neighborName = backupData.neighborName || 'Vicino';
-                    waterPreviousReadings = backupData.waterPreviousReadings || {
-                        myReading: null,
-                        neighborReading: null,
-                        totalReading: null
-                    };
+                    
+                    // Gestione compatibilità per vecchi backup
+                    if (backupData.initialWaterReadings) {
+                        initialWaterReadings = backupData.initialWaterReadings;
+                    } else if (backupData.waterPreviousReadings) {
+                        // Migrazione da vecchia struttura
+                        initialWaterReadings = {
+                            myReading: backupData.waterPreviousReadings.myReading,
+                            neighborReading: backupData.waterPreviousReadings.neighborReading
+                        };
+                    } else {
+                        initialWaterReadings = {
+                            myReading: null,
+                            neighborReading: null
+                        };
+                    }
 
                     // Salva in localStorage
                     saveBills();
                     savePeriodHistory();
                     localStorage.setItem('myName', myName);
                     localStorage.setItem('neighborName', neighborName);
-                    localStorage.setItem('waterPreviousReadings', JSON.stringify(waterPreviousReadings));
+                    localStorage.setItem('initialWaterReadings', JSON.stringify(initialWaterReadings));
 
                     // Aggiorna UI
                     myNameInput.value = myName === 'Tu' ? '' : myName;
                     neighborNameInput.value = neighborName === 'Vicino' ? '' : neighborName;
+                    initialMyReading.value = initialWaterReadings.myReading !== null ? initialWaterReadings.myReading : '';
+                    initialNeighborReading.value = initialWaterReadings.neighborReading !== null ? initialWaterReadings.neighborReading : '';
                     updateNamesInUI();
                     renderBills();
                     renderSummary();
@@ -1187,7 +1296,7 @@
             autoSaveInterval = setInterval(() => {
                 saveBills();
                 savePeriodHistory();
-                localStorage.setItem('waterPreviousReadings', JSON.stringify(waterPreviousReadings));
+                localStorage.setItem('initialWaterReadings', JSON.stringify(initialWaterReadings));
                 console.log('Auto-salvataggio completato');
             }, 30000);
         }
